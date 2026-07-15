@@ -4,14 +4,15 @@
 # Nothing is installed on your system. Deleting this folder (or running
 # .\uninstall.ps1) removes every trace.
 #
-# Usage:  .\setup.ps1
+# Usage:  .\scripts\setup.ps1
 # If Windows blocks the script, first run:
 #   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 $ErrorActionPreference = "Stop"
 
-# Resolve the project folder (where this script lives) so it works from anywhere.
-$Project = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Resolve the project root (one level up from this scripts/ folder).
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Project = Split-Path -Parent $ScriptDir
 Set-Location $Project
 
 $Bin = Join-Path $Project ".bin"
@@ -57,6 +58,6 @@ if (-not (Test-Path $EnvFile)) {
 Write-Host ""
 Write-Host "Done. Next steps:"
 Write-Host "  1. Open .env and paste your OpenAI API key."
-Write-Host "  2. Run the first example:  .\run.ps1"
+Write-Host "  2. Run the first example:  .\scripts\run.ps1"
 Write-Host ""
-Write-Host "To remove everything later:  .\uninstall.ps1  (or just delete this folder)."
+Write-Host "To remove everything later:  .\scripts\uninstall.ps1  (or just delete this folder)."

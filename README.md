@@ -19,6 +19,7 @@ modules/                one folder per workshop module
   05_agentic_assistants/
   06_running_pipelines/
 data/                   shared sample data (transcripts.csv, items.csv, …)
+scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
 Each `modules/0N_*/example.py` imports from `lab_llm` — the core is written once,
@@ -33,17 +34,17 @@ the folder removes every trace.
 **macOS / Linux**
 
 ```bash
-./setup.sh          # installs a private Python + packages, all in this folder
+./scripts/setup.sh          # installs a private Python + packages, all in this folder
 # open .env and paste your OpenAI key
-./run.sh            # runs modules/01_first_call/example.py
+./scripts/run.sh            # runs modules/01_first_call/example.py
 ```
 
 **Windows (PowerShell)**
 
 ```powershell
-.\setup.ps1         # installs a private Python + packages, all in this folder
+.\scripts\setup.ps1         # installs a private Python + packages, all in this folder
 # open .env and paste your OpenAI key
-.\run.ps1           # runs modules\01_first_call\example.py
+.\scripts\run.ps1           # runs modules\01_first_call\example.py
 ```
 
 Your key lives in `.env` (gitignored) and is read from the environment. It never
@@ -52,15 +53,15 @@ lives in code.
 ### Run a specific module
 
 ```bash
-./run.sh modules/02_ratings_at_scale/example.py     # macOS / Linux
-.\run.ps1 modules\02_ratings_at_scale\example.py    # Windows
+./scripts/run.sh modules/02_ratings_at_scale/example.py     # macOS / Linux
+.\scripts\run.ps1 modules\02_ratings_at_scale\example.py    # Windows
 ```
 
 ### Remove everything
 
 ```bash
-./uninstall.sh      # macOS / Linux
-.\uninstall.ps1     # Windows
+./scripts/uninstall.sh      # macOS / Linux
+.\scripts\uninstall.ps1     # Windows
 ```
 
 This deletes the private Python, the environment, caches, and `.env`, leaving

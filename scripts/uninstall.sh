@@ -6,11 +6,12 @@
 # and your .env. Only the source code is left behind.
 # (Deleting this whole folder does the same thing.)
 #
-# Usage:  ./uninstall.sh
+# Usage:  ./scripts/uninstall.sh
 #
 set -euo pipefail
 
-PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+PROJECT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT"
 
 echo "This removes the private Python, the .venv environment, caches, and .env."
@@ -34,4 +35,4 @@ rm -rf "$PROJECT"/*.egg-info "$PROJECT/uv.lock"
 find "$PROJECT" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
 
 echo "Done. Only the source code remains."
-echo "To set up again:  ./setup.sh"
+echo "To set up again:  ./scripts/setup.sh"

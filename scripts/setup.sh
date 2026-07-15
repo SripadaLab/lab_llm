@@ -6,12 +6,13 @@
 # Nothing is installed on your system. Deleting this folder (or running
 # ./uninstall.sh) removes every trace.
 #
-# Usage:  ./setup.sh
+# Usage:  ./scripts/setup.sh
 #
 set -euo pipefail
 
-# Resolve the project folder (where this script lives) so it works from anywhere.
-PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# Resolve the project root (one level up from this scripts/ folder).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+PROJECT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT"
 
 BIN="$PROJECT/.bin"
@@ -56,6 +57,6 @@ fi
 echo
 echo "Done. Next steps:"
 echo "  1. Open .env and paste your OpenAI API key."
-echo "  2. Run the first example:  ./run.sh"
+echo "  2. Run the first example:  ./scripts/run.sh"
 echo
-echo "To remove everything later:  ./uninstall.sh  (or just delete this folder)."
+echo "To remove everything later:  ./scripts/uninstall.sh  (or just delete this folder)."

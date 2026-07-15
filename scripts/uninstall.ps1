@@ -4,11 +4,12 @@
 # and your .env. Only the source code is left behind.
 # (Deleting this whole folder does the same thing.)
 #
-# Usage:  .\uninstall.ps1
+# Usage:  .\scripts\uninstall.ps1
 
 $ErrorActionPreference = "Stop"
 
-$Project = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Project = Split-Path -Parent $ScriptDir
 Set-Location $Project
 
 Write-Host "This removes the private Python, the .venv environment, caches, and .env."
@@ -33,4 +34,4 @@ Get-ChildItem -Path $Project -Directory -Filter "*.egg-info" -ErrorAction Silent
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "Done. Only the source code remains."
-Write-Host "To set up again:  .\setup.ps1"
+Write-Host "To set up again:  .\scripts\setup.ps1"
