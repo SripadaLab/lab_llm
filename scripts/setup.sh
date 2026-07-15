@@ -57,6 +57,6 @@ fi
 echo
 echo "Done. Next steps:"
 echo "  1. Open .env and paste your OpenAI API key."
-echo "  2. Run the first example:  ./scripts/run.sh"
+echo "  2. Run the first example:  ./scripts/run.sh modules/01_first_call/example.py"
 echo
 echo "To remove everything later:  ./scripts/uninstall.sh  (or just delete this folder)."

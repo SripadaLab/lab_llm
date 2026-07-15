@@ -1,11 +1,10 @@
 # run.ps1 - run a workshop example using the private environment.
 #
 # You do NOT need to activate anything. This uses the Python installed
-# by .\setup.ps1, inside this folder.
+# by .\scripts\setup.ps1, inside this folder.
 #
 # Usage:
-#   .\scripts\run.ps1                                          # runs modules\01_first_call\example.py
-#   .\scripts\run.ps1 modules\02_ratings_at_scale\example.py   # run a specific file
+#   .\scripts\run.ps1 modules\01_first_call\example.py
 
 $ErrorActionPreference = "Stop"
 
@@ -14,7 +13,6 @@ $Project = Split-Path -Parent $ScriptDir
 Set-Location $Project
 
 $Python = Join-Path $Project ".venv\Scripts\python.exe"
-if ($args.Count -ge 1) { $Target = $args[0] } else { $Target = "modules\01_first_call\example.py" }
 
 if (-not (Test-Path $Python)) {
     Write-Host "The environment isn't set up yet."
@@ -22,4 +20,10 @@ if (-not (Test-Path $Python)) {
     exit 1
 }
 
-& $Python $Target
+if ($args.Count -lt 1) {
+    Write-Host "Usage: .\scripts\run.ps1 <path-to-example>"
+    Write-Host "Example: .\scripts\run.ps1 modules\01_first_call\example.py"
+    exit 1
+}
+
+& $Python $args[0]

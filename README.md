@@ -36,7 +36,7 @@ the folder removes every trace.
 ```bash
 ./scripts/setup.sh          # installs a private Python + packages, all in this folder
 # open .env and paste your OpenAI key
-./scripts/run.sh            # runs modules/01_first_call/example.py
+./scripts/run.sh modules/01_first_call/example.py
 ```
 
 **Windows (PowerShell)**
@@ -44,7 +44,7 @@ the folder removes every trace.
 ```powershell
 .\scripts\setup.ps1         # installs a private Python + packages, all in this folder
 # open .env and paste your OpenAI key
-.\scripts\run.ps1           # runs modules\01_first_call\example.py
+.\scripts\run.ps1 modules\01_first_call\example.py
 ```
 
 Your key lives in `.env` (gitignored) and is read from the environment. It never

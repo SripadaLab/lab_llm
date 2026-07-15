@@ -3,11 +3,10 @@
 # run.sh — run a workshop example using the private environment.
 #
 # You do NOT need to activate anything. This uses the Python installed
-# by ./setup.sh, inside this folder.
+# by ./scripts/setup.sh, inside this folder.
 #
 # Usage:
-#   ./scripts/run.sh                                  # runs modules/01_first_call/example.py
-#   ./scripts/run.sh modules/02_ratings_at_scale/example.py   # run a specific file
+#   ./scripts/run.sh modules/01_first_call/example.py
 #
 set -euo pipefail
 
@@ -16,7 +15,6 @@ PROJECT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT"
 
 PYTHON="$PROJECT/.venv/bin/python"
-TARGET="${1:-modules/01_first_call/example.py}"
 
 if [ ! -x "$PYTHON" ]; then
   echo "The environment isn't set up yet."
@@ -24,4 +22,10 @@ if [ ! -x "$PYTHON" ]; then
   exit 1
 fi
 
-exec "$PYTHON" "$TARGET"
+if [ "$#" -lt 1 ]; then
+  echo "Usage: ./scripts/run.sh <path-to-example>"
+  echo "Example: ./scripts/run.sh modules/01_first_call/example.py"
+  exit 1
+fi
+
+exec "$PYTHON" "$1"
