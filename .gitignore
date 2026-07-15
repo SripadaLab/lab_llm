@@ -1,8 +1,17 @@
+# Local, in-folder install (created by setup.sh / setup.ps1)
+.bin/
+.python/
+.cache/
 .venv/
+.env
+uv.lock
+
+# Python
 __pycache__/
 *.pyc
-.env
+*.egg-info/
+
+# Misc
 .DS_Store
 runs/
 out/
-*.egg-info/
