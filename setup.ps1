@@ -1,4 +1,4 @@
-# setup.ps1 — one-command setup for Windows (PowerShell).
+# setup.ps1 - one-command setup for Windows (PowerShell).
 #
 # Installs a private Python and all dependencies INSIDE this folder.
 # Nothing is installed on your system. Deleting this folder (or running
@@ -51,7 +51,7 @@ $env:VIRTUAL_ENV = Join-Path $Project ".venv"
 $EnvFile = Join-Path $Project ".env"
 if (-not (Test-Path $EnvFile)) {
     Copy-Item (Join-Path $Project ".env.example") $EnvFile
-    Write-Host "==> Created .env — open it and paste your OpenAI key."
+    Write-Host "==> Created .env - open it and paste your OpenAI key."
 }
 
 Write-Host ""

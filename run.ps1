@@ -1,4 +1,4 @@
-# run.ps1 — run a workshop example using the private environment.
+# run.ps1 - run a workshop example using the private environment.
 #
 # You do NOT need to activate anything. This uses the Python installed
 # by .\setup.ps1, inside this folder.

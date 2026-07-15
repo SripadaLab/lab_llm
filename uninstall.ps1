@@ -1,4 +1,4 @@
-# uninstall.ps1 — remove everything setup.ps1 created.
+# uninstall.ps1 - remove everything setup.ps1 created.
 #
 # Deletes the private Python, the environment, caches, the downloaded tool,
 # and your .env. Only the source code is left behind.
