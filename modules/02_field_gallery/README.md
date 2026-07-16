@@ -1,0 +1,38 @@
+# Module 1: A field gallery
+
+Eight small prompts, and the response-object fields each one brings to life.
+This mirrors the workshop site (Module 1, page 5), but here you run them for
+real against your own key.
+
+## The examples
+
+| Name        | Point                                               |
+|-------------|-----------------------------------------------------|
+| `simple`    | The baseline: `output_text`, `model`, `status`.     |
+| `reasoning` | A `reasoning` item and `reasoning_tokens`; the steps stay private. |
+| `tokens`    | `usage`: input, output, and total tokens.           |
+| `cutoff`    | `status: incomplete` and `incomplete_details`.      |
+| `refusal`   | `status: completed`, yet the text declines.         |
+| `format`    | The `instructions` come back with the response.     |
+| `structure` | The long path vs the `output_text` shortcut.        |
+| `identity`  | `id`, `created_at`, `completed_at`.                  |
+
+## Run
+
+```bash
+# every example
+./scripts/run.sh modules/02_field_gallery/field_gallery.py          # macOS / Linux
+.\scripts\run.ps1 modules\02_field_gallery\field_gallery.py         # Windows
+
+# just one
+./scripts/run.sh modules/02_field_gallery/field_gallery.py cutoff
+```
+
+## What to expect
+
+The exact wording and token counts vary each run. The field shapes and the
+`status` values are stable, which is the whole point.
+
+The `reasoning` example needs a parameter (`reasoning={"effort": "medium"}`)
+that the `call_llm` helper does not wrap, so it drops down to the raw client.
+That is the escape hatch whenever the helper is too small for what you need.
