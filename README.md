@@ -27,6 +27,19 @@ Module 1 uses the OpenAI package directly, the same first call you ran on the
 site. From Module 2 on, each `modules/0N_*/example.py` imports from `lab_llm`.
 The core is written once. Every module builds on the last.
 
+## Two ways to use this repo
+
+- **Build it from scratch.** The workshop site and the raw `example.py` files
+  use the plain OpenAI SDK, so you can see exactly what happens and write your
+  own scripts.
+- **Adopt the package.** `lab_llm` wraps those same calls with conveniences
+  worth reusing: it loads your `.env`, fails closed on incomplete or failed
+  responses (`LLMResponseError`), and honors optional timeout/retry settings.
+  The `nicer_example.py` and gallery files show it in use.
+
+Neither is more correct. Use the raw calls to learn; adopt `lab_llm` when you
+would rather not rewrite the plumbing every time.
+
 ## Setup
 
 You do **not** need Python installed. Setup downloads a private Python and all

@@ -6,10 +6,13 @@ using the OpenAI Python package directly.
 
 ## Two versions
 
-- `example.py`: the raw call, exactly as shown on the site.
-- `nicer_example.py`: the same call through the `lab_llm` helper (`call_llm`),
-  which loads your `.env`, uses `DEFAULT_MODEL`, and keeps the full response.
-  Text and token usage are ready to use.
+These are the two tracks of the workshop side by side:
+
+- `example.py`: **build it from scratch.** The raw call, exactly as shown on the
+  site, using the OpenAI package directly.
+- `nicer_example.py`: **adopt the package.** The same call through the `lab_llm`
+  helper (`call_llm`), which loads your `.env`, uses `DEFAULT_MODEL`, keeps the
+  full response, and fails closed if the response did not complete.
 
 ## Run
 

@@ -4,6 +4,11 @@ Eight small prompts, and the response-object fields each one brings to life.
 This mirrors the workshop site (Module 1, page 5), but here you run them for
 real against your own key.
 
+The site shows these calls **from scratch** with the raw OpenAI SDK. Here they
+run through `lab_llm` (the **adopt the package** track), so the `cutoff` example
+simply catches the `LLMResponseError` that `call_llm` raises when a response
+does not complete.
+
 ## The examples
 
 | Name        | Point                                               |
