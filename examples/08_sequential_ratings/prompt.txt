@@ -1,5 +1,6 @@
 Requested rating:
 {item}
+Allowed range: {min_value} to {max_value}.
 
 Transcript:
 {transcript}

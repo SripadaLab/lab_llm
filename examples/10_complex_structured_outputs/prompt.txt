@@ -1,0 +1,10 @@
+Assess the transcript for anxiety.
+
+Give one overall rating from 0 to 100.
+Support the rating with brief explanations and exact quotes.
+Attach the transcript date to every quote.
+
+Transcript date: {date}
+
+Transcript:
+{transcript}

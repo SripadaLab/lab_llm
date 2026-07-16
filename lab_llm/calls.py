@@ -5,6 +5,7 @@ runs on the site behaves the same when you run it locally.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -17,7 +18,9 @@ class Usage:
     """Token counts for one call, when the API reports them."""
 
     input_tokens: Optional[int] = None
+    cached_input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
+    reasoning_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
 
 
@@ -41,9 +44,13 @@ class LLMResult:
         raw_usage = getattr(response, "usage", None)
         usage = None
         if raw_usage:
+            input_details = getattr(raw_usage, "input_tokens_details", None)
+            output_details = getattr(raw_usage, "output_tokens_details", None)
             usage = Usage(
                 input_tokens=getattr(raw_usage, "input_tokens", None),
+                cached_input_tokens=getattr(input_details, "cached_tokens", None),
                 output_tokens=getattr(raw_usage, "output_tokens", None),
+                reasoning_tokens=getattr(output_details, "reasoning_tokens", None),
                 total_tokens=getattr(raw_usage, "total_tokens", None),
             )
 
@@ -63,6 +70,7 @@ def call_llm(
     instructions: Optional[str] = None,
     model: Optional[str] = None,
     max_output_tokens: Optional[int] = None,
+    output_format: Optional[dict[str, Any]] = None,
 ) -> LLMResult:
     """Send `prompt` to the model and return the reply.
 
@@ -70,6 +78,7 @@ def call_llm(
     instructions       optional system-style guidance
     model              override the default model
     max_output_tokens  cap the response length
+    output_format      optional Responses API text format
 
     Example:
         result = call_llm("Why is the sky blue?", instructions="Be concise.")
@@ -89,6 +98,15 @@ def call_llm(
         or max_output_tokens <= 0
     ):
         raise ValueError("max_output_tokens must be a positive integer")
+    if output_format is not None and not isinstance(output_format, dict):
+        raise ValueError("output_format must be a dictionary")
+    if output_format is not None:
+        try:
+            json.dumps(output_format, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "output_format must contain JSON-compatible values"
+            ) from exc
 
     # Build the request, adding optional fields only when set.
     kwargs: dict = {"model": model or get_model(), "input": prompt}
@@ -96,6 +114,8 @@ def call_llm(
         kwargs["instructions"] = instructions
     if max_output_tokens is not None:
         kwargs["max_output_tokens"] = max_output_tokens
+    if output_format is not None:
+        kwargs["text"] = {"format": output_format}
 
     response = get_client().responses.create(**kwargs)
     return LLMResult.from_response(response)

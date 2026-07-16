@@ -1,3 +1,3 @@
-item_id,prompt
-dep_01,"Rate depressed mood on a 0-100 scale."
-anx_01,"Rate anxiety on a 0-100 scale."
+item_id,prompt,min_value,max_value
+dep_01,"Rate depressed mood.",0,100
+anx_01,"Rate anxiety.",0,100

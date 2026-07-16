@@ -1,0 +1,9 @@
+Rate how strongly the transcript supports this item.
+
+Item: {item}
+Allowed range: {min_value} to {max_value}
+
+Transcript:
+{transcript}
+
+Use null only when the transcript does not contain enough evidence to score.

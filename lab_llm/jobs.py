@@ -1,8 +1,10 @@
-"""Run independent LLM jobs one at a time, with durable progress."""
+"""Run independent LLM jobs with durable, resumable progress."""
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import hashlib
 import json
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +13,7 @@ from typing import Any, Iterable, Optional
 from .calls import LLMResult, call_llm
 from .config import get_model
 from .errors import LLMResponseError
+from .progress import RunProgress, TokenPricing, add_cost_estimate
 
 
 @dataclass
@@ -22,6 +25,7 @@ class LLMJob:
     instructions: Optional[str] = None
     model: Optional[str] = None
     max_output_tokens: Optional[int] = None
+    output_format: Optional[dict[str, Any]] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -41,30 +45,43 @@ class LLMJob:
             or self.max_output_tokens <= 0
         ):
             raise ValueError("max_output_tokens must be a positive integer")
+        if self.output_format is not None and not isinstance(
+            self.output_format, dict
+        ):
+            raise ValueError("output_format must be a dictionary")
 
-        # Metadata is written to JSONL. Check it before making any API calls.
+        # These values are written to JSONL. Check them before any API calls.
         try:
             json.dumps(self.metadata, allow_nan=False)
+            json.dumps(self.output_format, allow_nan=False)
         except (TypeError, ValueError) as exc:
-            raise ValueError("metadata must contain JSON-compatible values") from exc
+            raise ValueError(
+                "metadata and output_format must contain JSON-compatible values"
+            ) from exc
 
 
 def run_jobs(
     jobs: Iterable[LLMJob],
     output_path: str | Path,
+    *,
+    pricing: TokenPricing | None = None,
+    workers: int = 1,
 ) -> list[dict[str, Any]]:
-    """Run jobs sequentially and save each result immediately.
+    """Run jobs and save each result immediately.
 
     Reusing the same output path resumes the run. Completed job IDs are
     skipped. Failed jobs are attempted again. If a job's request changed while
     keeping the same ID, the run stops before making any API calls.
 
-    API and response errors are recorded. The runner then moves to the next
-    job. Running it again retries failed jobs, but never completed ones.
+    API and response errors are recorded. Running again retries failed jobs,
+    but never completed ones. ``workers=1`` is sequential. Larger values use
+    separate processes; only the parent process writes the output file.
     """
     jobs = list(jobs)
     if not jobs:
         raise ValueError("jobs must contain at least one LLMJob")
+    if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
+        raise ValueError("workers must be a positive integer")
 
     job_ids = [job.job_id for job in jobs]
     if len(job_ids) != len(set(job_ids)):
@@ -75,10 +92,24 @@ def run_jobs(
     default_model = get_model() if any(job.model is None for job in jobs) else None
     prepared = [_prepare_job(job, default_model) for job in jobs]
 
+    # Explicit pricing prevents a silent estimate for the wrong model.
+    if pricing is not None:
+        models = {request["model"] for _, request in prepared}
+        if models != {pricing.model}:
+            raise ValueError(
+                f"pricing is for {pricing.model!r}, but jobs use {sorted(models)!r}"
+            )
+
     output_path = Path(output_path)
     previous_records = _read_records(output_path)
     latest = _latest_by_job(previous_records)
     attempts = _attempt_counts(previous_records)
+
+    # Older run records may predate cost tracking. Enrich the in-memory copy
+    # so regenerated CSV output still gets a cost estimate.
+    for record in latest.values():
+        if record.get("status") == "completed":
+            add_cost_estimate(record, pricing)
 
     # A stable ID must always mean the same request. Otherwise resume could
     # silently keep an old answer for a changed prompt.
@@ -91,39 +122,112 @@ def run_jobs(
             )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    pending_jobs = sum(
+        not (latest.get(job.job_id) or {}).get("status") == "completed"
+        for job in jobs
+    )
+    progress = RunProgress(
+        total_jobs=len(jobs),
+        pending_jobs=pending_jobs,
+        existing_records=latest.values(),
+        pricing=pricing,
+    )
+
+    pending = []
+    for number, (job, request) in enumerate(prepared, start=1):
+        previous = latest.get(job.job_id)
+        if previous and previous.get("status") == "completed":
+            print(f"[{number}/{len(jobs)}] skip {job.job_id} (completed)")
+            continue
+        pending.append((number, job, request, attempts.get(job.job_id, 0) + 1))
 
     with output_path.open("a", encoding="utf-8") as output_file:
-        for number, (job, request) in enumerate(prepared, start=1):
-            previous = latest.get(job.job_id)
-            if previous and previous.get("status") == "completed":
-                print(f"[{number}/{len(jobs)}] skip {job.job_id} (completed)")
-                continue
-
-            attempt = attempts.get(job.job_id, 0) + 1
-            print(f"[{number}/{len(jobs)}] run  {job.job_id}")
-
-            try:
-                result = call_llm(
-                    job.prompt,
-                    instructions=job.instructions,
-                    model=request["model"],
-                    max_output_tokens=job.max_output_tokens,
+        if workers == 1:
+            for number, job, request, attempt in pending:
+                print(f"[{number}/{len(jobs)}] run  {job.job_id}")
+                record = _run_one_job(job, request, attempt)
+                _save_record(
+                    record, number, len(jobs), output_file,
+                    latest, attempts, progress, pricing,
                 )
-                record = _completed_record(job, request, result, attempt)
-            except Exception as exc:
-                record = _failed_record(job, request, exc, attempt)
-                _append_record(output_file, record)
-                latest[job.job_id] = record
-                attempts[job.job_id] = attempt
-                print(f"[{number}/{len(jobs)}] fail {job.job_id}: {type(exc).__name__}")
-                continue
+        else:
+            # Workers make requests. The parent remains the only process that
+            # writes JSONL, so concurrent completions cannot corrupt the file.
+            executor = ProcessPoolExecutor(max_workers=workers)
+            futures = {}
+            try:
+                for number, job, request, attempt in pending:
+                    print(f"[{number}/{len(jobs)}] queue {job.job_id}")
+                    future = executor.submit(_run_one_job, job, request, attempt)
+                    futures[future] = (number, job, request, attempt)
 
-            _append_record(output_file, record)
-            latest[job.job_id] = record
-            attempts[job.job_id] = attempt
+                for future in as_completed(futures):
+                    number, job, request, attempt = futures[future]
+                    try:
+                        record = future.result()
+                    except Exception as exc:
+                        # A failed worker process is still a visible job failure.
+                        record = _failed_record(job, request, exc, attempt, 0.0)
+                    _save_record(
+                        record, number, len(jobs), output_file,
+                        latest, attempts, progress, pricing,
+                    )
+            except KeyboardInterrupt:
+                # Do not start queued calls after the user stops the run.
+                for future in futures:
+                    future.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+            else:
+                executor.shutdown()
 
     # Return one current record per requested job, in the original job order.
     return [latest[job.job_id] for job in jobs]
+
+
+def _run_one_job(
+    job: LLMJob,
+    request: dict[str, Any],
+    attempt: int,
+) -> dict[str, Any]:
+    """Make one call. Safe to execute in the parent or a worker process."""
+    started_at = time.perf_counter()
+    try:
+        result = call_llm(
+            job.prompt,
+            instructions=job.instructions,
+            model=request["model"],
+            max_output_tokens=job.max_output_tokens,
+            output_format=job.output_format,
+        )
+        duration = time.perf_counter() - started_at
+        return _completed_record(job, request, result, attempt, duration)
+    except Exception as exc:
+        duration = time.perf_counter() - started_at
+        return _failed_record(job, request, exc, attempt, duration)
+
+
+def _save_record(
+    record: dict[str, Any],
+    number: int,
+    total: int,
+    output_file,
+    latest: dict[str, dict[str, Any]],
+    attempts: dict[str, int],
+    progress: RunProgress,
+    pricing: TokenPricing | None,
+) -> None:
+    """Save one returned record and update parent-owned progress."""
+    add_cost_estimate(record, pricing)
+    _append_record(output_file, record)
+    latest[record["job_id"]] = record
+    attempts[record["job_id"]] = record["attempt"]
+    status = progress.update(record)
+    if record["status"] == "completed":
+        print(f"[{number}/{total}] done {record['job_id']} | {status}")
+    else:
+        error_type = (record.get("error") or {}).get("type", "Error")
+        print(f"[{number}/{total}] fail {record['job_id']}: {error_type} | {status}")
 
 
 def _prepare_job(
@@ -137,6 +241,7 @@ def _prepare_job(
         "instructions": job.instructions,
         "input": job.prompt,
         "max_output_tokens": job.max_output_tokens,
+        "output_format": job.output_format,
         "metadata": job.metadata,
     }
     encoded = json.dumps(
@@ -154,13 +259,16 @@ def _completed_record(
     request: dict[str, Any],
     result: LLMResult,
     attempt: int,
+    duration_seconds: float,
 ) -> dict[str, Any]:
     """Build one durable record from a completed call."""
     usage = None
     if result.usage is not None:
         usage = {
             "input_tokens": result.usage.input_tokens,
+            "cached_input_tokens": result.usage.cached_input_tokens,
             "output_tokens": result.usage.output_tokens,
+            "reasoning_tokens": result.usage.reasoning_tokens,
             "total_tokens": result.usage.total_tokens,
         }
 
@@ -170,6 +278,7 @@ def _completed_record(
         "attempt": attempt,
         "status": "completed",
         "recorded_at": _now(),
+        "duration_seconds": round(duration_seconds, 6),
         "metadata": job.metadata,
         "request": _saved_request(request),
         "model": result.model or request["model"],
@@ -186,6 +295,7 @@ def _failed_record(
     request: dict[str, Any],
     error: Exception,
     attempt: int,
+    duration_seconds: float,
 ) -> dict[str, Any]:
     """Build one durable record without hiding the original exception."""
     # lab_llm response errors retain the complete unsuccessful API response.
@@ -196,6 +306,7 @@ def _failed_record(
         "attempt": attempt,
         "status": "failed",
         "recorded_at": _now(),
+        "duration_seconds": round(duration_seconds, 6),
         "metadata": job.metadata,
         "request": _saved_request(request),
         "model": request["model"],
@@ -229,6 +340,7 @@ def _saved_request(request: dict[str, Any]) -> dict[str, Any]:
         "instructions": request["instructions"],
         "input": request["input"],
         "max_output_tokens": request["max_output_tokens"],
+        "output_format": request["output_format"],
     }
 
 

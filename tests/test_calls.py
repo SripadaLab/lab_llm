@@ -31,7 +31,9 @@ class CallLlmTests(TestCase):
             output=[SimpleNamespace(type="message", content=["refusal details"])],
             usage=SimpleNamespace(
                 input_tokens=11,
+                input_tokens_details=SimpleNamespace(cached_tokens=3),
                 output_tokens=7,
+                output_tokens_details=SimpleNamespace(reasoning_tokens=2),
                 total_tokens=18,
             ),
         )
@@ -51,6 +53,8 @@ class CallLlmTests(TestCase):
         self.assertEqual(result.text, "")
         self.assertEqual(result.model, "test-model")
         self.assertEqual(result.usage.total_tokens, 18)
+        self.assertEqual(result.usage.cached_input_tokens, 3)
+        self.assertEqual(result.usage.reasoning_tokens, 2)
         self.assertEqual(
             responses.kwargs,
             {"model": "default-model", "input": "hello"},
@@ -73,6 +77,7 @@ class CallLlmTests(TestCase):
                 instructions="Be brief.",
                 model="chosen-model",
                 max_output_tokens=25,
+                output_format={"type": "json_schema", "name": "test"},
             )
 
         self.assertEqual(result.text, "done")
@@ -84,6 +89,9 @@ class CallLlmTests(TestCase):
                 "input": "hello",
                 "instructions": "Be brief.",
                 "max_output_tokens": 25,
+                "text": {
+                    "format": {"type": "json_schema", "name": "test"}
+                },
             },
         )
 
@@ -163,5 +171,18 @@ class CallLlmTests(TestCase):
                             model="test-model",
                             max_output_tokens=limit,
                         )
+
+            with self.assertRaisesRegex(ValueError, "must be a dictionary"):
+                call_llm(
+                    "hello",
+                    model="test-model",
+                    output_format="json",
+                )
+            with self.assertRaisesRegex(ValueError, "JSON-compatible"):
+                call_llm(
+                    "hello",
+                    model="test-model",
+                    output_format={"bad": {1, 2}},
+                )
 
         get_client.assert_not_called()

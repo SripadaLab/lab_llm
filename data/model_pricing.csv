@@ -1,0 +1,23 @@
+model,service_tier,input_per_million,cached_input_per_million,output_per_million,as_of,source_url,notes
+gpt-5.6-sol,standard,5,0.5,30,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5.6-terra,standard,2.5,0.25,15,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5.6-luna,standard,1,0.1,6,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5.5,standard,5,0.5,30,2026-07-16,https://developers.openai.com/api/docs/pricing,Rate shown for context under 272K tokens
+gpt-5.4,standard,2.5,0.25,15,2026-07-16,https://developers.openai.com/api/docs/pricing,Rate shown for context under 272K tokens
+gpt-5.4-mini,standard,0.75,0.075,4.5,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5.4-nano,standard,0.2,0.02,1.25,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5.2,standard,1.75,0.175,14,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5.1,standard,1.25,0.125,10,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5,standard,1.25,0.125,10,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5-mini,standard,0.25,0.025,2,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-5-nano,standard,0.05,0.005,0.4,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-4.1,standard,2,0.5,8,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-4.1-mini,standard,0.4,0.1,1.6,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-4.1-nano,standard,0.1,0.025,0.4,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-4o,standard,2.5,1.25,10,2026-07-16,https://developers.openai.com/api/docs/pricing,
+gpt-4o-mini,standard,0.15,0.075,0.6,2026-07-16,https://developers.openai.com/api/docs/pricing,
+o1,standard,15,7.5,60,2026-07-16,https://developers.openai.com/api/docs/pricing,
+o3,standard,2,0.5,8,2026-07-16,https://developers.openai.com/api/docs/pricing,
+o4-mini,standard,1.1,0.275,4.4,2026-07-16,https://developers.openai.com/api/docs/pricing,
+o3-mini,standard,1.1,0.55,4.4,2026-07-16,https://developers.openai.com/api/docs/pricing,
+o1-mini,standard,1.1,0.55,4.4,2026-07-16,https://developers.openai.com/api/docs/pricing,

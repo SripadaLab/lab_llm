@@ -2,13 +2,16 @@
 
 Start with `call_llm` for one call. Use `Conversation` or
 `StatelessConversation` for connected turns. Use `run_jobs` for independent,
-resumable calls. Later modules add structured outputs and workflow helpers.
+resumable calls, including optional structured output formats.
 """
 from .calls import LLMResult, Usage, call_llm
 from .conversations import Conversation, StatelessConversation
 from .errors import ConfigurationError, LabLLMError, LLMResponseError
 from .files import delete_file, temporary_file, upload_file
 from .jobs import LLMJob, run_jobs
+from .inputs import Item, ItemBank, PromptTemplate, Transcript, TranscriptBank
+from .progress import TokenPricing, load_token_pricing
+from .structured import OutputContract
 from .tools import code_interpreter_tool, web_search_tool
 
 __all__ = [
@@ -27,5 +30,13 @@ __all__ = [
     "code_interpreter_tool",
     "LLMJob",
     "run_jobs",
+    "PromptTemplate",
+    "Transcript",
+    "TranscriptBank",
+    "Item",
+    "ItemBank",
+    "TokenPricing",
+    "load_token_pricing",
+    "OutputContract",
 ]
 __version__ = "0.1.0"

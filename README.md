@@ -11,7 +11,10 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
   conversations.py      stored and stateless multi-turn helpers
-  jobs.py               sequential jobs with durable, resumable output
+  jobs.py               sequential or multiprocess jobs; durable output
+  inputs.py             prompt templates, transcripts, and item banks
+  progress.py           elapsed time, ETA, and token-cost estimates
+  structured.py         versioned output types and validation rules
   files.py              persistent or temporary Files API uploads
   tools.py              readable hosted-tool configurations
   config.py             API key + model, loaded from the environment
@@ -24,8 +27,11 @@ examples/                runnable examples from the workshop
   05_files/              Files API upload and response input
   06_web/                hosted web-search example
   07_code_interpreter/   hosted Python example
-  08_sequential_ratings/ transcript x item ratings, one call at a time
+  08_sequential_ratings/ transcript x item ratings; one or more workers
+  09_structured_outputs/ simple JSON Schema and typed output
+  10_complex_structured_outputs/ nested evidence and justifications
 data/                   shared sample transcripts, item banks, and instructions
+  model_pricing.csv      saved OpenAI token-price snapshot for long runs
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
@@ -76,15 +82,30 @@ easy to reach. `Conversation` uses one durable conversation ID.
 `StatelessConversation` keeps the complete history locally and sends it again
 with every turn. Both reuse their instructions across turns.
 
+`PromptTemplate` validates named placeholders before a run. `TranscriptBank`
+loads one text file per transcript. `ItemBank` loads uniquely identified items
+and numeric bounds from CSV. Each stays iterable, so the transcript x item loop
+remains ordinary Python.
+
 `call_llm()` fails closed when a response is incomplete or failed. It raises
 `LLMResponseError` with the full response attached. OpenAI SDK exceptions are
 left unchanged, so callers can still catch specific authentication, rate-limit,
 connection, and API errors.
 
-`run_jobs()` runs independent calls sequentially. It saves every attempt to
-JSONL before starting the next call. Reusing the output path skips completed
-jobs and retries failed ones. A failed job is recorded without blocking the
-jobs after it.
+`run_jobs()` runs independent calls sequentially by default. Set `workers` to
+use multiple processes. Workers make API calls; the parent alone writes each
+returned attempt to JSONL. Reusing the output path skips completed jobs and
+retries failed ones. Pass explicit `TokenPricing` to add live elapsed time,
+ETA, usage cost, and projected final cost. OpenAI responses contain token
+counts, not a dollar charge; the saved rate card makes the estimate auditable.
+
+Jobs may also carry an explicit Responses API `output_format`. The ratings
+example uses strict Structured Outputs, validates item-specific ranges
+again locally, supports a zero-call `--dry-run`, and saves `summary.json`.
+
+`OutputContract` versions a Pydantic output type. It produces the Responses API
+JSON Schema and parses JSON into that Python type. Research-specific checks
+remain visible in the calling code.
 
 Optional `.env` settings:
 
