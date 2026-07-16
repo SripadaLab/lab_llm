@@ -1,6 +1,8 @@
 Requested rating:
 {item}
 Allowed range: {min_value} to {max_value}.
+Scoring values:
+{scoring_values}
 
 Transcript:
 {transcript}

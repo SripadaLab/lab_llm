@@ -10,13 +10,18 @@ handles the repeatable run machinery.
 
 - `data/transcripts/`: one plain-text file per transcript. The filename stem is
   its ID: `transcript_03.txt` becomes `transcript_03`.
-- `data/items.csv`: item IDs, rating prompts, and allowed numeric ranges.
+- `data/items.csv`: item IDs, prompts, ranges, and optional scoring values.
 - `data/instructions.txt`: directions shared by every call.
 - `prompt.txt`: where the item and transcript are placed.
 
 `TranscriptBank` loads and validates the transcript folder. `ItemBank` does the
 same for the item CSV. `PromptTemplate` allows only `{item}`, `{min_value}`,
-`{max_value}`, and `{transcript}` here, then renders one prompt for each pair.
+`{max_value}`, `{scoring_values}`, and `{transcript}` here, then renders one
+prompt for each pair.
+
+For a discrete scale, write `scoring_values` as `0 = Not at all | 1 = Some |
+2 = A lot`. These become labeled choices in the prompt and exact allowed values
+in validation. Leave the column blank for any number within the stated range.
 
 Ten transcripts x two items = twenty independent ratings.
 
@@ -105,7 +110,7 @@ explicitly tries failed jobs again.
 
 Each request uses one versioned Pydantic contract with a `rating` field. The
 runner validates the shape and type before marking the job complete. A numeric
-value must also fall inside that item's `min_value` and `max_value`; `null`
-means the transcript could not be scored. The ratings helper applies that
-item-specific check. Invalid output is kept as `raw_text` and marked
-`parse_failed`.
+value must also fall inside that item's `min_value` and `max_value`. When
+`scoring_values` are present, the value must match one of them exactly. `null`
+means the transcript could not be scored. Invalid output is kept as `raw_text`
+and marked `parse_failed`.

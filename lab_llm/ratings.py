@@ -57,7 +57,13 @@ def run_rating_batch(
     items = ItemBank.from_csv(args.items)
     template = PromptTemplate.from_file(
         prompt_path,
-        fields=("item", "min_value", "max_value", "transcript"),
+        fields=(
+            "item",
+            "min_value",
+            "max_value",
+            "scoring_values",
+            "transcript",
+        ),
     )
     instructions = args.instructions.read_text(encoding="utf-8")
     model = get_model()
@@ -132,6 +138,7 @@ def _build_jobs(
                     item=item.prompt,
                     min_value=f"{item.min_value:g}",
                     max_value=f"{item.max_value:g}",
+                    scoring_values=item.scoring_guide,
                 ),
                 instructions=instructions,
                 model=model,
@@ -143,6 +150,10 @@ def _build_jobs(
                     "item_id": item.item_id,
                     "min_value": item.min_value,
                     "max_value": item.max_value,
+                    "scoring_values": item.scoring_values,
+                    "allowed_values": [
+                        value for value, _ in item.value_labels
+                    ],
                 },
             ))
     return jobs
@@ -171,6 +182,13 @@ def _rating_value(record):
             "parse_failed",
             f"rating must be between {minimum:g} and {maximum:g}",
         )
+    allowed = [
+        Decimal(str(number))
+        for number in record["metadata"].get("allowed_values", [])
+    ]
+    if allowed and value not in allowed:
+        choices = ", ".join(f"{number:g}" for number in allowed)
+        return None, "parse_failed", f"rating must be one of: {choices}"
     return f"{value:g}", "parsed", ""
 
 

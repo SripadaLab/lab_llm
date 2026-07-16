@@ -111,8 +111,12 @@ class RatingBatchTests(TestCase):
         ))
         template = PromptTemplate(
             "Item: {item}\nRange: {min_value}-{max_value}\n"
+            "Values: {scoring_values}\n"
             "Transcript: {transcript}",
-            fields=("item", "min_value", "max_value", "transcript"),
+            fields=(
+                "item", "min_value", "max_value", "scoring_values",
+                "transcript",
+            ),
         )
 
         jobs = ratings._build_jobs(
@@ -130,6 +134,8 @@ class RatingBatchTests(TestCase):
         self.assertIn("First transcript", jobs[0].prompt)
         self.assertEqual(jobs[0].metadata["transcript_file"], "T1.txt")
         self.assertEqual(jobs[-1].metadata["max_value"], 5)
+        self.assertEqual(jobs[0].metadata["scoring_values"], "")
+        self.assertIn("Any number in the allowed range.", jobs[0].prompt)
         self.assertEqual(jobs[0].output_format, CONTRACT.output_format)
         self.assertEqual(jobs[0].max_output_tokens, 100)
 
@@ -151,6 +157,19 @@ class RatingBatchTests(TestCase):
                 self.assertIsNone(result)
                 self.assertEqual(status, "parse_failed")
                 self.assertTrue(error)
+
+        discrete = completed_record(2.5)
+        discrete["metadata"]["allowed_values"] = [0, 1, 2, 3]
+        self.assertEqual(
+            ratings._rating_value(discrete),
+            (None, "parse_failed", "rating must be one of: 0, 1, 2, 3"),
+        )
+
+        discrete["parsed_output"]["rating"] = 2
+        self.assertEqual(
+            ratings._rating_value(discrete),
+            ("2", "parsed", ""),
+        )
 
     def test_writes_analysis_ready_results(self):
         with TemporaryDirectory() as directory:

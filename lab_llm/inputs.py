@@ -164,6 +164,7 @@ class Item:
     prompt: str
     min_value: float
     max_value: float
+    scoring_values: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.item_id, str) or not self.item_id.strip():
@@ -178,6 +179,54 @@ class Item:
                 raise ValueError(f"item {name} must be finite")
         if self.min_value >= self.max_value:
             raise ValueError("item min_value must be less than max_value")
+
+        # Optional Likert values use a compact, CSV-friendly format:
+        # "0 = Not at all | 1 = Several days | 2 = Nearly every day"
+        values = self.value_labels
+        if values and (
+            values[0][0] != self.min_value
+            or values[-1][0] != self.max_value
+        ):
+            raise ValueError(
+                "scoring_values must start at min_value and end at max_value"
+            )
+
+    @property
+    def value_labels(self) -> tuple[tuple[float, str], ...]:
+        """Return exact scoring values and their labels."""
+        if not isinstance(self.scoring_values, str):
+            raise ValueError("item scoring_values must be a string")
+        if not self.scoring_values.strip():
+            return ()
+
+        values = []
+        for entry in self.scoring_values.split("|"):
+            number, separator, label = entry.partition("=")
+            if not separator or not number.strip() or not label.strip():
+                raise ValueError(
+                    'scoring_values must use "number = label | number = label"'
+                )
+            try:
+                value = float(number.strip())
+            except ValueError as exc:
+                raise ValueError("scoring values must be numbers") from exc
+            if not math.isfinite(value):
+                raise ValueError("scoring values must be finite")
+            values.append((value, label.strip()))
+
+        numbers = [value for value, _ in values]
+        if numbers != sorted(set(numbers)):
+            raise ValueError("scoring values must be unique and increasing")
+        return tuple(values)
+
+    @property
+    def scoring_guide(self) -> str:
+        """Format a scale for insertion into a model prompt."""
+        if not self.value_labels:
+            return "Any number in the allowed range."
+        return "\n".join(
+            f"{value:g} = {label}" for value, label in self.value_labels
+        )
 
 
 @dataclass(frozen=True)
@@ -216,6 +265,7 @@ class ItemBank:
                     prompt = (row.get("prompt") or "").strip()
                     min_value = (row.get("min_value") or "").strip()
                     max_value = (row.get("max_value") or "").strip()
+                    scoring_values = (row.get("scoring_values") or "").strip()
                     if not item_id:
                         raise ValueError(f"{path}:{row_number} has a blank item_id")
                     if not prompt:
@@ -226,6 +276,7 @@ class ItemBank:
                             prompt=prompt,
                             min_value=float(min_value),
                             max_value=float(max_value),
+                            scoring_values=scoring_values,
                         )
                     except ValueError as exc:
                         raise ValueError(f"{path}:{row_number}: {exc}") from exc

@@ -90,9 +90,10 @@ class ItemBankTests(TestCase):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "items.csv"
             path.write_text(
-                "item_id,prompt,min_value,max_value\n"
-                "I1,Rate mood,0,100\n"
-                "I2,Rate worry,1,5\n",
+                "item_id,prompt,min_value,max_value,scoring_values\n"
+                "I1,Rate mood,0,100,\n"
+                'I2,Rate worry,1,5,"1 = Never | 2 = Rarely | '
+                '3 = Sometimes | 4 = Often | 5 = Always"\n',
                 encoding="utf-8",
             )
             bank = ItemBank.from_csv(path)
@@ -101,6 +102,12 @@ class ItemBankTests(TestCase):
         self.assertEqual(bank.items[0].prompt, "Rate mood")
         self.assertEqual(bank.items[1].min_value, 1)
         self.assertEqual(bank.items[1].max_value, 5)
+        self.assertEqual(
+            bank.items[0].scoring_guide,
+            "Any number in the allowed range.",
+        )
+        self.assertEqual(bank.items[1].value_labels[0], (1, "Never"))
+        self.assertIn("5 = Always", bank.items[1].scoring_guide)
 
     def test_rejects_missing_blank_or_duplicate_items(self):
         with TemporaryDirectory() as directory:
@@ -126,3 +133,9 @@ class ItemBankTests(TestCase):
 
         with self.assertRaisesRegex(ValueError, "less than"):
             Item("I1", "Rate mood", 100, 0)
+
+        with self.assertRaisesRegex(ValueError, "start at min_value"):
+            Item("I1", "Rate mood", 0, 3, "1 = Low | 3 = High")
+
+        with self.assertRaisesRegex(ValueError, "unique and increasing"):
+            Item("I1", "Rate mood", 0, 3, "0 = Low | 0 = Again | 3 = High")
