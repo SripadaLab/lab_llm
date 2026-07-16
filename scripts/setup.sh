@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# setup.sh — one-command setup for macOS / Linux.
+# setup.sh: one-command setup for macOS / Linux.
 #
 # Installs a private Python and all dependencies INSIDE this folder.
 # Nothing is installed system-wide. Deleting this folder removes all project
@@ -51,7 +51,7 @@ VIRTUAL_ENV="$PROJECT/.venv" "$UV" pip install -e "$PROJECT"
 # 4. Create a .env for your API key if you don't have one yet.
 if [ ! -f "$PROJECT/.env" ]; then
   cp "$PROJECT/.env.example" "$PROJECT/.env"
-  echo "==> Created .env — open it and paste your OpenAI key."
+  echo "==> Created .env. Open it and paste your OpenAI key."
 fi
 
 echo

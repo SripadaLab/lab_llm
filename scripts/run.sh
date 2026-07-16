@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run.sh — run a workshop example using the private environment.
+# run.sh: run a workshop example using the private environment.
 #
 # You do NOT need to activate anything. This uses the Python installed
 # by ./scripts/setup.sh, inside this folder.

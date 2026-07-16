@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# uninstall.sh — remove the local install created by setup.sh.
+# uninstall.sh: remove the local install created by setup.sh.
 #
 # Deletes the private Python, the environment, caches, the downloaded tool,
 # and your .env. Source code and run outputs stay.

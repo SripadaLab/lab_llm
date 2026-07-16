@@ -1,4 +1,4 @@
-# Workshop code — `lab_llm`
+# Workshop code: `lab_llm`
 
 The take-home code for the **LLM APIs for Research Analysis** workshop.
 
@@ -9,7 +9,7 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 
 ```
 lab_llm/                the reusable package (install once, use everywhere)
-  calls.py              call_llm() — the reusable one-call helper
+  calls.py              call_llm(), the reusable one-call helper
   config.py             API key + model, loaded from the environment
 modules/                one folder per workshop module
   01_first_call/        example.py + README (+ expected output)
@@ -23,8 +23,8 @@ scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
 Module 1 uses the OpenAI package directly, the same first call you ran on the
-site. From Module 2 on, each `modules/0N_*/example.py` imports from `lab_llm` —
-the core is written once, and every module builds on the last.
+site. From Module 2 on, each `modules/0N_*/example.py` imports from `lab_llm`.
+The core is written once. Every module builds on the last.
 
 ## Setup
 
@@ -82,5 +82,5 @@ python modules/01_first_call/example.py
 
 ## Requirements
 
-- No Python required — `setup` installs a private one. (Or use your own, 3.10+.)
+- No Python required. `setup` installs a private one. (Or use your own, 3.10+.)
 - An OpenAI API key (`OPENAI_API_KEY`)

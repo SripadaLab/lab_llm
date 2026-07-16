@@ -1,4 +1,4 @@
-# Module 5 — Agentic research assistants
+# Module 5: Agentic research assistants
 
 Let tools and models coordinate research work with checkpoints:
 project setup, dataset QA, pilot planning, and approvals.

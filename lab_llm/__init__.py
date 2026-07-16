@@ -1,4 +1,4 @@
-"""lab_llm — a small, reusable toolkit for LLM analysis in research labs.
+"""lab_llm: a small, reusable toolkit for LLM analysis in research labs.
 
 Start with `call_llm`, the one-call helper the workshop builds in Module 1.
 Later modules add batch running, structured outputs, and workflow helpers.

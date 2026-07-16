@@ -1,4 +1,4 @@
-# Module 3 — Structured outputs and response validation
+# Module 3: Structured outputs and response validation
 
 Make model outputs usable as data: schema-constrained responses,
 validation, retries, and parse-rate checks.

@@ -1,4 +1,4 @@
-# Module 2 — LLM ratings at scale
+# Module 2: LLM ratings at scale
 
 Turn one working prompt into a repeatable rating pipeline over
 transcripts × items, with an analysis-ready output table.
