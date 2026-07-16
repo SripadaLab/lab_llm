@@ -5,8 +5,8 @@ runs on the site behaves the same when you run it locally.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from .config import get_client, get_model
 
@@ -22,9 +22,10 @@ class Usage:
 
 @dataclass
 class LLMResult:
-    """The reply text, plus the model used and token usage."""
+    """The full response, plus convenient access to text and token usage."""
 
     text: str
+    response: Any = field(repr=False)
     model: Optional[str] = None
     usage: Optional[Usage] = None
 
@@ -70,6 +71,7 @@ def call_llm(
 
     return LLMResult(
         text=response.output_text,
+        response=response,
         model=getattr(response, "model", None),
         usage=_read_usage(response),
     )

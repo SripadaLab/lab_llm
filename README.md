@@ -51,6 +51,9 @@ the folder removes the project files.
 Your key lives in `.env` (gitignored) and is read from the environment. It never
 lives in code.
 
+The helper keeps the complete OpenAI response. Reply text and token usage stay
+easy to reach.
+
 ### Run a specific module
 
 ```bash
@@ -79,6 +82,14 @@ pip install -e .
 cp .env.example .env           # then add your OpenAI key
 python modules/01_first_call/example.py
 ```
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The tests use fake clients. They do not make paid API calls.
 
 ## Requirements
 

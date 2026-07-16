@@ -26,4 +26,5 @@ if ($args.Count -lt 1) {
     exit 1
 }
 
-& $Python $args[0]
+& $Python @args
+exit $LASTEXITCODE

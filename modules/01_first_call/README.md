@@ -8,7 +8,8 @@ using the OpenAI Python package directly.
 
 - `example.py`: the raw call, exactly as shown on the site.
 - `nicer_example.py`: the same call through the `lab_llm` helper (`call_llm`),
-  which loads your `.env`, uses `DEFAULT_MODEL`, and returns the text plus token usage.
+  which loads your `.env`, uses `DEFAULT_MODEL`, and keeps the full response.
+  Text and token usage are ready to use.
 
 ## Run
 

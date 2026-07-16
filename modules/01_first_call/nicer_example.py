@@ -1,8 +1,8 @@
 """Module 1 - the same first call, using the lab_llm helper.
 
 Compare this with example.py. `call_llm()` wraps the OpenAI call, loads your
-.env for you, uses DEFAULT_MODEL, and returns a tidy result: the reply text
-plus the model and token usage.
+.env for you, uses DEFAULT_MODEL, and keeps the full response. Reply text,
+model, and token usage stay easy to reach.
 
 Run:  ./scripts/run.sh modules/01_first_call/nicer_example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
