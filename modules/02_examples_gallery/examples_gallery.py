@@ -99,8 +99,9 @@ def structure():
         item for item in r.response.output
         if item.type == "message"
     )
-    print(message.content[0].text)
-    print(r.text)
+    print("message :", message.content[0].text[:40])
+    print("shortcut:", r.text[:40])
+    print("same    :", message.content[0].text == r.text)
 
 
 def identity():
