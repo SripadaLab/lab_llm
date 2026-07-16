@@ -25,7 +25,7 @@ examples/                runnable examples from the workshop
   06_web/                hosted web-search example
   07_code_interpreter/   hosted Python example
   08_sequential_ratings/ transcript x item ratings, one call at a time
-data/                   shared sample data (transcripts.csv, items.csv, …)
+data/                   shared sample transcripts, item banks, and instructions
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
@@ -83,7 +83,8 @@ connection, and API errors.
 
 `run_jobs()` runs independent calls sequentially. It saves every attempt to
 JSONL before starting the next call. Reusing the output path skips completed
-jobs and retries failed ones.
+jobs and retries failed ones. A failed job is recorded without blocking the
+jobs after it.
 
 Optional `.env` settings:
 

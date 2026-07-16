@@ -10,6 +10,7 @@ from typing import Any, Iterable, Optional
 
 from .calls import LLMResult, call_llm
 from .config import get_model
+from .errors import LLMResponseError
 
 
 @dataclass
@@ -58,7 +59,8 @@ def run_jobs(
     skipped. Failed jobs are attempted again. If a job's request changed while
     keeping the same ID, the run stops before making any API calls.
 
-    API and response errors are recorded, then raised unchanged.
+    API and response errors are recorded. The runner then moves to the next
+    job. Running it again retries failed jobs, but never completed ones.
     """
     jobs = list(jobs)
     if not jobs:
@@ -111,7 +113,10 @@ def run_jobs(
             except Exception as exc:
                 record = _failed_record(job, request, exc, attempt)
                 _append_record(output_file, record)
-                raise
+                latest[job.job_id] = record
+                attempts[job.job_id] = attempt
+                print(f"[{number}/{len(jobs)}] fail {job.job_id}: {type(exc).__name__}")
+                continue
 
             _append_record(output_file, record)
             latest[job.job_id] = record
@@ -183,6 +188,8 @@ def _failed_record(
     attempt: int,
 ) -> dict[str, Any]:
     """Build one durable record without hiding the original exception."""
+    # lab_llm response errors retain the complete unsuccessful API response.
+    response = error.response if isinstance(error, LLMResponseError) else None
     return {
         "job_id": job.job_id,
         "request_hash": request["request_hash"],
@@ -195,7 +202,7 @@ def _failed_record(
         "output_text": None,
         "response_id": getattr(error, "response_id", None),
         "usage": None,
-        "response": None,
+        "response": _response_as_dict(response) if response is not None else None,
         "error": {
             "type": type(error).__name__,
             "message": str(error),
