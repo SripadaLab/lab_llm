@@ -9,7 +9,7 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 
 ```
 lab_llm/                the reusable package (install once, use everywhere)
-  calls.py              call_llm() — the Module 1 helper
+  calls.py              call_llm() — the reusable one-call helper
   config.py             API key + model, loaded from the environment
 modules/                one folder per workshop module
   01_first_call/        example.py + README (+ expected output)
@@ -22,8 +22,9 @@ data/                   shared sample data (transcripts.csv, items.csv, …)
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
-Each `modules/0N_*/example.py` imports from `lab_llm` — the core is written once,
-and every module builds on the last. That is the reusable workflow, not six copies.
+Module 1 uses the OpenAI package directly, the same first call you ran on the
+site. From Module 2 on, each `modules/0N_*/example.py` imports from `lab_llm` —
+the core is written once, and every module builds on the last.
 
 ## Setup
 

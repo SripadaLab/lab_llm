@@ -1,7 +1,7 @@
 """The one-call helper: send a prompt, get a clean result back.
 
-This mirrors `call_llm()` in the workshop site's live-run cells, so code you
-run on the site behaves the same when you run it locally.
+`call_llm()` mirrors the live-run cells on the workshop site, so code that
+runs on the site behaves the same when you run it locally.
 """
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ from .config import get_client, get_model
 
 @dataclass
 class Usage:
+    """Token counts for one call, when the API reports them."""
+
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -20,9 +22,23 @@ class Usage:
 
 @dataclass
 class LLMResult:
+    """The reply text, plus the model used and token usage."""
+
     text: str
     model: Optional[str] = None
     usage: Optional[Usage] = None
+
+
+def _read_usage(response) -> Optional[Usage]:
+    """Pull token counts off the response, if the API returned any."""
+    raw = getattr(response, "usage", None)
+    if not raw:
+        return None
+    return Usage(
+        input_tokens=getattr(raw, "input_tokens", None),
+        output_tokens=getattr(raw, "output_tokens", None),
+        total_tokens=getattr(raw, "total_tokens", None),
+    )
 
 
 def call_llm(
@@ -32,13 +48,14 @@ def call_llm(
     model: Optional[str] = None,
     max_output_tokens: Optional[int] = None,
 ) -> LLMResult:
-    """Send `prompt` to the model and return the reply as text.
+    """Send `prompt` to the model and return the reply.
 
-    prompt            the user input
-    instructions      optional system-style guidance
-    model             override the default model
-    max_output_tokens cap the response length
+    prompt             the user input
+    instructions       optional system-style guidance
+    model              override the default model
+    max_output_tokens  cap the response length
     """
+    # Build the request, adding optional fields only when set.
     kwargs: dict = {"model": model or get_model(), "input": prompt}
     if instructions is not None:
         kwargs["instructions"] = instructions
@@ -47,19 +64,8 @@ def call_llm(
 
     response = get_client().responses.create(**kwargs)
 
-    raw = getattr(response, "usage", None)
-    usage = (
-        Usage(
-            input_tokens=getattr(raw, "input_tokens", None),
-            output_tokens=getattr(raw, "output_tokens", None),
-            total_tokens=getattr(raw, "total_tokens", None),
-        )
-        if raw
-        else None
-    )
-
     return LLMResult(
         text=response.output_text,
         model=getattr(response, "model", None),
-        usage=usage,
+        usage=_read_usage(response),
     )

@@ -1,6 +1,6 @@
-"""Configuration: API key and model, loaded from the environment.
+"""API client and default model, loaded from the environment.
 
-Keys never live in code. Set them in your shell or a local `.env`
+Your key never lives in code. Set it in your shell or a local `.env`
 (copy `.env.example` to `.env`). `.env` is gitignored.
 """
 from __future__ import annotations
@@ -8,11 +8,9 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
-DEFAULT_MODEL = "gpt-5.4-mini"
-
 
 def _load_dotenv() -> None:
-    """Load a local .env if python-dotenv is available (it's a dependency)."""
+    """Load a local `.env` into the environment, if python-dotenv is installed."""
     try:
         from dotenv import load_dotenv
     except ImportError:
@@ -21,17 +19,23 @@ def _load_dotenv() -> None:
 
 
 def get_model() -> str:
-    """The model to use, from the DEFAULT_MODEL env var or the built-in default."""
+    """Return the default model, read from the DEFAULT_MODEL environment variable."""
     _load_dotenv()
-    return os.environ.get("DEFAULT_MODEL", DEFAULT_MODEL)
+    model = os.environ.get("DEFAULT_MODEL")
+    if not model:
+        raise RuntimeError(
+            "DEFAULT_MODEL is not set. Copy .env.example to .env (it sets one), "
+            "or export DEFAULT_MODEL in your shell."
+        )
+    return model
 
 
 @lru_cache(maxsize=1)
 def get_client():
     """Return a cached OpenAI client.
 
-    Reads OPENAI_API_KEY (required) and OPENAI_BASE_URL (optional, to target a
-    compatible endpoint) from the environment or a local .env.
+    Reads OPENAI_API_KEY (required) and OPENAI_BASE_URL (optional) from the
+    environment or a local `.env`.
     """
     _load_dotenv()
     if not os.environ.get("OPENAI_API_KEY"):
