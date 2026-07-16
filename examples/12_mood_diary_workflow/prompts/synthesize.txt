@@ -1,0 +1,7 @@
+Collapse overlapping candidate themes into a small set of canonical themes.
+
+Use every candidate_id exactly once. Do not invent IDs. Keep distinct themes
+separate when their meanings differ.
+
+Candidate themes:
+{candidates}

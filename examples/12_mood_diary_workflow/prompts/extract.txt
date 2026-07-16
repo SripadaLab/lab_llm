@@ -1,0 +1,15 @@
+Extract the main life themes expressed in this mood diary entry.
+
+For each theme:
+- use a short, concrete label;
+- describe what the entry says;
+- copy one exact supporting quote;
+- rate its importance in this entry from 1 to 5.
+
+Return an empty themes list if the entry contains no usable theme.
+
+Diary ID: {diary_id}
+Date: {date}
+
+Diary:
+{diary}

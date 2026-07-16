@@ -1,0 +1,10 @@
+Write a brief, quote-grounded explanation of this theme.
+
+Use only the supplied diary entries. Copy quotes exactly. Include two or three
+of the strongest quotes when available. State any important uncertainty.
+
+Theme:
+{theme}
+
+Relevant diary entries:
+{diaries}

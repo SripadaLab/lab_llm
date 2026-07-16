@@ -34,7 +34,9 @@ examples/                runnable examples from the workshop
   09_check_results/      classify saved rating outcomes
   10_structured_outputs/ simple JSON Schema and typed output
   11_complex_structured_outputs/ nested evidence and justifications
+  12_mood_diary_workflow/ extract, synthesize, score, audit, report
 data/                   shared sample transcripts, item banks, and instructions
+  mood_diaries/          eight synthetic, dated diary entries
   model_pricing.csv      saved OpenAI token-price snapshot for long runs
   synthetic_rating_results.jsonl  five example rating outcomes
 scripts/                setup / run / uninstall (macOS + Windows)
