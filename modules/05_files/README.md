@@ -1,7 +1,8 @@
 # Module 1: Files
 
-Upload a local file through the Files API. Reference its file ID in a Responses
-request. Delete the server-side file when done.
+Upload two local files through the Files API (a CSV of transcripts and a text
+rubric). Reference both file IDs in one Responses request, so the model applies
+the rubric to the data. Delete the server-side files when done.
 
 ## Run
 

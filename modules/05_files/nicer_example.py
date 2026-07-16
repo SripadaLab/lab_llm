@@ -1,18 +1,22 @@
-"""Module 1 - the same file call, using lab_llm.
+"""Module 1 - the same two-file call, using lab_llm.
 
 Run:  ./scripts/run.sh modules/05_files/nicer_example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from lab_llm import Conversation, delete_file, upload_file  # reusable helpers
 
-uploaded_file = upload_file("data/transcripts.csv")  # upload once
+transcripts = upload_file("data/transcripts.csv")  # the data
+rubric = upload_file("data/instructions.txt")      # the rating rubric
 
 chat = Conversation()                       # one server-side conversation
-result = chat.send(                         # file and prompt in one turn
-    "How many rows are in this file? List its columns.",
-    file_id=uploaded_file.id,               # reference the uploaded file
+result = chat.send(                         # both files and the prompt in one turn
+    "Use the instructions file to rate each transcript in the CSV for anxiety "
+    "on a 0-100 scale. Give the id and the score.",
+    file_ids=[transcripts.id, rubric.id],   # reference both uploaded files
 )
 
 print(result.text)                          # the model output
-delete_file(uploaded_file.id)               # remove the server-side file
+
+delete_file(transcripts.id)                 # remove the uploaded files
+delete_file(rubric.id)
 chat.delete()                               # remove the conversation

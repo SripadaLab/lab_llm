@@ -29,26 +29,29 @@ class Conversation:
         prompt: str,
         *,
         file_id: Optional[str] = None,
+        file_ids: Optional[list[str]] = None,
         tools: Optional[list[dict[str, Any]]] = None,
     ) -> LLMResult:
         """Send one turn and return the reply with the full response."""
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("prompt must be a non-empty string")
-        if file_id is not None and (
-            not isinstance(file_id, str) or not file_id.strip()
-        ):
-            raise ValueError("file_id must be a non-empty string")
+
+        # Accept one file (file_id) or several (file_ids). Order is preserved.
+        ids: list[str] = []
+        if file_id is not None:
+            ids.append(file_id)
+        if file_ids is not None:
+            ids.extend(file_ids)
+        for fid in ids:
+            if not isinstance(fid, str) or not fid.strip():
+                raise ValueError("file_id must be a non-empty string")
 
         input_value: Any = prompt
-        if file_id is not None:
-            # A file and its prompt are content items in one user message.
-            input_value = [{
-                "role": "user",
-                "content": [
-                    {"type": "input_file", "file_id": file_id},
-                    {"type": "input_text", "text": prompt},
-                ],
-            }]
+        if ids:
+            # Each file plus the prompt are content items in one user message.
+            content = [{"type": "input_file", "file_id": fid} for fid in ids]
+            content.append({"type": "input_text", "text": prompt})
+            input_value = [{"role": "user", "content": content}]
 
         kwargs: dict = {
             "model": self.model,

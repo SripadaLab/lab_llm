@@ -176,6 +176,40 @@ class ConversationTests(TestCase):
             },
         )
 
+    def test_sends_multiple_files_in_order(self):
+        response = SimpleNamespace(
+            id="resp_test",
+            output_text="Done",
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        responses = FakeResponses([response])
+        client = SimpleNamespace(
+            conversations=SimpleNamespace(
+                create=lambda: SimpleNamespace(id="conv_test")
+            ),
+            responses=responses,
+        )
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            Conversation(model="test-model").send(
+                "Rate these.",
+                file_ids=["file_a", "file_b"],
+            )
+
+        self.assertEqual(
+            responses.calls[0]["input"],
+            [{
+                "role": "user",
+                "content": [
+                    {"type": "input_file", "file_id": "file_a"},
+                    {"type": "input_file", "file_id": "file_b"},
+                    {"type": "input_text", "text": "Rate these."},
+                ],
+            }],
+        )
+
     def test_rejects_invalid_turns_before_creating_a_response(self):
         responses = FakeResponses()
         client = SimpleNamespace(

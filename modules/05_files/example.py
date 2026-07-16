@@ -1,4 +1,7 @@
-"""Module 1 - upload a file, then use it in a model response.
+"""Module 1 - upload two files, then use both in one model response.
+
+Upload a CSV of transcripts and a text rubric, reference both in one request,
+and the model applies the rubric to the data.
 
 Run:  ./scripts/run.sh modules/05_files/example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
@@ -11,27 +14,33 @@ from openai import OpenAI                  # the OpenAI Python package
 client = OpenAI()                          # reads OPENAI_API_KEY from the environment
 conversation = client.conversations.create()  # one server-side conversation
 
-with open("data/transcripts.csv", "rb") as document:  # a local file
-    uploaded_file = client.files.create(   # upload it once
-        file=document,                     # file bytes
-        purpose="user_data",              # intended as model input
-    )
+with open("data/transcripts.csv", "rb") as f:   # the data
+    transcripts = client.files.create(file=f, purpose="user_data")
 
-response = client.responses.create(        # reference it by file ID
+with open("data/instructions.txt", "rb") as f:  # the rating rubric
+    rubric = client.files.create(file=f, purpose="user_data")
+
+response = client.responses.create(        # reference both files by ID
     model="gpt-5.4-mini",                  # which model answers
     conversation=conversation.id,          # attach the shared conversation
-    input=[{                                # one user message: file + task
+    input=[{                                # one user message: files + task
         "role": "user",
         "content": [
-            {"type": "input_file", "file_id": uploaded_file.id},  # the file
+            {"type": "input_file", "file_id": transcripts.id},  # the CSV
+            {"type": "input_file", "file_id": rubric.id},       # the rubric
             {
                 "type": "input_text",
-                "text": "How many rows are in this file? List its columns.",  # task
+                "text": (
+                    "Use the instructions file to rate each transcript in the "
+                    "CSV for anxiety on a 0-100 scale. Give the id and the score."
+                ),
             },
         ],
     }],
 )
 
 print(response.output_text)                # the model output
-client.files.delete(uploaded_file.id)      # remove the server-side file
+
+client.files.delete(transcripts.id)        # remove the uploaded files
+client.files.delete(rubric.id)
 client.conversations.delete(conversation.id)  # remove the conversation
