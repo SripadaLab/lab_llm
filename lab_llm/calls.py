@@ -54,6 +54,10 @@ def call_llm(
     instructions       optional system-style guidance
     model              override the default model
     max_output_tokens  cap the response length
+
+    Example:
+        result = call_llm("Why is the sky blue?", instructions="Be concise.")
+        print(result.text)
     """
     # Build the request, adding optional fields only when set.
     kwargs: dict = {"model": model or get_model(), "input": prompt}

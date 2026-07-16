@@ -30,6 +30,7 @@ def get_model() -> str:
     return model
 
 
+# Cache the client so it is built once and reused across calls.
 @lru_cache(maxsize=1)
 def get_client():
     """Return a cached OpenAI client.
@@ -43,6 +44,7 @@ def get_client():
             "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key, "
             "or export OPENAI_API_KEY in your shell."
         )
+    # Imported here so the package loads even before `openai` is installed.
     from openai import OpenAI
 
     return OpenAI()
