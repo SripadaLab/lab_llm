@@ -2,7 +2,7 @@
 
 The take-home code for the **LLM APIs for Research Analysis** workshop.
 
-The workshop **site** does the live teaching. This repo is the polished result:
+The workshop [**site**](https://llm-workshop.cap-study.com/) does the live teaching. This repo is the polished result:
 one small reusable package (`lab_llm`) plus a runnable example per module.
 
 ## Layout
