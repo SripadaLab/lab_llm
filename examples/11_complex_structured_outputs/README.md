@@ -5,15 +5,15 @@ Return one assessment with nested justifications and dated quotes.
 ## Run
 
 ```bash
-./scripts/run.sh examples/10_complex_structured_outputs/example.py
-./scripts/run.sh examples/10_complex_structured_outputs/nicer_example.py
+./scripts/run.sh examples/11_complex_structured_outputs/example.py
+./scripts/run.sh examples/11_complex_structured_outputs/nicer_example.py
 ```
 
 On Windows:
 
 ```powershell
-.\scripts\run.ps1 examples\10_complex_structured_outputs\example.py
-.\scripts\run.ps1 examples\10_complex_structured_outputs\nicer_example.py
+.\scripts\run.ps1 examples\11_complex_structured_outputs\example.py
+.\scripts\run.ps1 examples\11_complex_structured_outputs\nicer_example.py
 ```
 
 ## Two versions

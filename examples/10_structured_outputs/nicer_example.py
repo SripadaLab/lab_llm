@@ -1,7 +1,6 @@
 """The same structured rating, using lab_llm and a Pydantic type.
 
-Run:  ./scripts/run.sh examples/09_structured_outputs/nicer_example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
+Run:  ./scripts/run.sh examples/10_structured_outputs/nicer_example.py
 """
 from pathlib import Path
 
@@ -21,7 +20,7 @@ maximum = 4
 
 contract = OutputContract("rating", "1", Rating)
 template = PromptTemplate.from_file(
-    "examples/09_structured_outputs/prompt.txt",
+    "examples/10_structured_outputs/prompt.txt",
     fields=("item", "min_value", "max_value", "transcript"),
 )
 prompt = template.render(

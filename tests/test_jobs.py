@@ -7,14 +7,26 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from pydantic import BaseModel, ConfigDict
+
 from lab_llm import (
     LLMJob,
     LLMResponseError,
     LLMResult,
+    OutputContract,
     TokenPricing,
     Usage,
     run_jobs,
 )
+
+
+class Rating(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    rating: float | None
+
+
+RATING_CONTRACT = OutputContract("rating", "1", Rating)
 
 
 class FakeResponse:
@@ -105,6 +117,133 @@ class JobTests(TestCase):
         call.assert_not_called()
         self.assertEqual(second, first)
         self.assertEqual(len(saved_lines), 1)
+
+    def test_validates_output_and_saves_plain_json(self):
+        job = LLMJob("job-1", "Rate this", model="test-model")
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch(
+                "lab_llm.jobs.call_llm",
+                return_value=completed_result(text='{"rating": 3}'),
+            ) as call:
+                records = run_jobs(
+                    [job],
+                    output,
+                    output_contract=RATING_CONTRACT,
+                )
+
+        record = records[0]
+        self.assertEqual(record["status"], "completed")
+        self.assertEqual(record["contract_id"], "rating@1")
+        self.assertEqual(record["validation_status"], "passed")
+        self.assertEqual(record["parsed_output"], {"rating": 3.0})
+        self.assertEqual(
+            call.call_args.kwargs["output_format"],
+            RATING_CONTRACT.output_format,
+        )
+
+    def test_validation_failure_is_saved_and_retried_next_run(self):
+        job = LLMJob("job-1", "Rate this", model="test-model")
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch(
+                "lab_llm.jobs.call_llm",
+                return_value=completed_result(text='{"wrong": 3}'),
+            ):
+                first = run_jobs(
+                    [job],
+                    output,
+                    output_contract=RATING_CONTRACT,
+                )
+
+            with patch(
+                "lab_llm.jobs.call_llm",
+                return_value=completed_result(text='{"rating": 3}'),
+            ) as call:
+                second = run_jobs(
+                    [job],
+                    output,
+                    output_contract=RATING_CONTRACT,
+                )
+
+            saved = [json.loads(line) for line in output.read_text().splitlines()]
+
+        self.assertEqual(first[0]["status"], "validation_failed")
+        self.assertEqual(first[0]["validation_status"], "failed")
+        self.assertEqual(first[0]["error"]["phase"], "validation")
+        self.assertEqual(first[0]["output_text"], '{"wrong": 3}')
+        self.assertEqual(second[0]["status"], "completed")
+        self.assertEqual(second[0]["attempt"], 2)
+        self.assertEqual(call.call_count, 1)
+        self.assertEqual(len(saved), 2)
+
+    def test_does_not_silently_accept_an_unvalidated_old_result(self):
+        job = LLMJob(
+            "job-1",
+            "Rate this",
+            model="test-model",
+            output_format=RATING_CONTRACT.output_format,
+        )
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch(
+                "lab_llm.jobs.call_llm",
+                return_value=completed_result(text='{"rating": 3}'),
+            ):
+                run_jobs([job], output)
+
+            with patch("lab_llm.jobs.call_llm") as call:
+                with self.assertRaisesRegex(ValueError, "without validation"):
+                    run_jobs(
+                        [job],
+                        output,
+                        output_contract=RATING_CONTRACT,
+                    )
+
+        call.assert_not_called()
+
+    def test_contract_can_confirm_a_matching_job_output_format(self):
+        job = LLMJob(
+            "job-1",
+            "Rate this",
+            model="test-model",
+            output_format=RATING_CONTRACT.output_format,
+        )
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch(
+                "lab_llm.jobs.call_llm",
+                return_value=completed_result(text='{"rating": null}'),
+            ):
+                records = run_jobs(
+                    [job],
+                    output,
+                    output_contract=RATING_CONTRACT,
+                )
+
+        self.assertEqual(records[0]["parsed_output"], {"rating": None})
+
+    def test_rejects_an_output_format_that_disagrees_with_contract(self):
+        job = LLMJob(
+            "job-1",
+            "Rate this",
+            model="test-model",
+            output_format={"type": "json_schema", "name": "other"},
+        )
+
+        with patch("lab_llm.jobs.call_llm") as call:
+            with self.assertRaisesRegex(ValueError, "does not match contract"):
+                run_jobs(
+                    [job],
+                    "unused.jsonl",
+                    output_contract=RATING_CONTRACT,
+                )
+
+        call.assert_not_called()
 
     def test_records_failure_then_retries_it_on_the_next_run(self):
         job = LLMJob("job-1", "Rate this", model="test-model")

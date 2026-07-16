@@ -164,11 +164,11 @@ class RunProgress:
         self._started_at = clock()
         self._attempted = 0
 
-        # Resume includes the cost already recorded for completed jobs.
+        # Resume includes costs already recorded for any finished API calls.
+        # A response can consume tokens and still fail local validation.
         self._completed_costs = [
             cost
             for record in existing_records
-            if record.get("status") == "completed"
             if (cost := _record_cost(record, pricing)) is not None
         ]
 
@@ -177,10 +177,9 @@ class RunProgress:
         self._attempted += 1
         self.remaining = max(self.remaining - 1, 0)
 
-        if record.get("status") == "completed":
-            cost = _record_cost(record, self.pricing)
-            if cost is not None:
-                self._completed_costs.append(cost)
+        cost = _record_cost(record, self.pricing)
+        if cost is not None:
+            self._completed_costs.append(cost)
 
         elapsed = max(self._clock() - self._started_at, 0)
         eta = None

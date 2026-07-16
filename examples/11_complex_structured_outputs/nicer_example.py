@@ -1,7 +1,6 @@
 """The same nested assessment, using lab_llm and Pydantic types.
 
-Run:  ./scripts/run.sh examples/10_complex_structured_outputs/nicer_example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
+Run:  ./scripts/run.sh examples/11_complex_structured_outputs/nicer_example.py
 """
 from pathlib import Path
 
@@ -33,7 +32,7 @@ class Assessment(BaseModel):
 
 contract = OutputContract("anxiety_assessment", "1", Assessment)
 template = PromptTemplate.from_file(
-    "examples/10_complex_structured_outputs/prompt.txt",
+    "examples/11_complex_structured_outputs/prompt.txt",
     fields=("date", "transcript"),
 )
 prompt = template.render(

@@ -2,18 +2,26 @@
 from __future__ import annotations
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import hashlib
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from .calls import LLMResult, call_llm
+from .calls import call_llm
 from .config import get_model
-from .errors import LLMResponseError
 from .progress import RunProgress, TokenPricing, add_cost_estimate
+from .records import (
+    append_record,
+    attempt_counts,
+    completed_record,
+    failed_record,
+    latest_by_job,
+    prepare_job,
+    read_records,
+    validate_output,
+)
+from .structured import OutputContract
 
 
 @dataclass
@@ -66,6 +74,7 @@ def run_jobs(
     *,
     pricing: TokenPricing | None = None,
     workers: int = 1,
+    output_contract: OutputContract | None = None,
 ) -> list[dict[str, Any]]:
     """Run jobs and save each result immediately.
 
@@ -73,9 +82,10 @@ def run_jobs(
     skipped. Failed jobs are attempted again. If a job's request changed while
     keeping the same ID, the run stops before making any API calls.
 
-    API and response errors are recorded. Running again retries failed jobs,
-    but never completed ones. ``workers=1`` is sequential. Larger values use
-    separate processes; only the parent process writes the output file.
+    API, response, and output-validation errors are recorded. Running again
+    retries failed jobs, but never completed ones. ``workers=1`` is sequential.
+    Larger values use separate processes; only the parent process validates
+    and writes results.
     """
     jobs = list(jobs)
     if not jobs:
@@ -90,7 +100,7 @@ def run_jobs(
     # Resolve the default model once. The saved request then records exactly
     # which model was used, even if .env changes later.
     default_model = get_model() if any(job.model is None for job in jobs) else None
-    prepared = [_prepare_job(job, default_model) for job in jobs]
+    prepared = [prepare_job(job, default_model, output_contract) for job in jobs]
 
     # Explicit pricing prevents a silent estimate for the wrong model.
     if pricing is not None:
@@ -101,9 +111,9 @@ def run_jobs(
             )
 
     output_path = Path(output_path)
-    previous_records = _read_records(output_path)
-    latest = _latest_by_job(previous_records)
-    attempts = _attempt_counts(previous_records)
+    previous_records = read_records(output_path)
+    latest = latest_by_job(previous_records)
+    attempts = attempt_counts(previous_records)
 
     # Older run records may predate cost tracking. Enrich the in-memory copy
     # so regenerated CSV output still gets a cost estimate.
@@ -119,6 +129,20 @@ def run_jobs(
             raise ValueError(
                 f"job {job.job_id!r} changed since this run was created; "
                 "use a new output path or a new job_id"
+            )
+        if (
+            previous
+            and previous.get("status") == "completed"
+            and output_contract is not None
+            and (
+                previous.get("contract_id") != output_contract.contract_id
+                or previous.get("validation_status") != "passed"
+            )
+        ):
+            raise ValueError(
+                f"job {job.job_id!r} was completed without validation by "
+                f"contract {output_contract.contract_id!r}; use a new output "
+                "path"
             )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -148,7 +172,7 @@ def run_jobs(
                 record = _run_one_job(job, request, attempt)
                 _save_record(
                     record, number, len(jobs), output_file,
-                    latest, attempts, progress, pricing,
+                    latest, attempts, progress, pricing, output_contract,
                 )
         else:
             # Workers make requests. The parent remains the only process that
@@ -167,10 +191,10 @@ def run_jobs(
                         record = future.result()
                     except Exception as exc:
                         # A failed worker process is still a visible job failure.
-                        record = _failed_record(job, request, exc, attempt, 0.0)
+                        record = failed_record(job, request, exc, attempt, 0.0)
                     _save_record(
                         record, number, len(jobs), output_file,
-                        latest, attempts, progress, pricing,
+                        latest, attempts, progress, pricing, output_contract,
                     )
             except KeyboardInterrupt:
                 # Do not start queued calls after the user stops the run.
@@ -198,13 +222,13 @@ def _run_one_job(
             instructions=job.instructions,
             model=request["model"],
             max_output_tokens=job.max_output_tokens,
-            output_format=job.output_format,
+            output_format=request["output_format"],
         )
         duration = time.perf_counter() - started_at
-        return _completed_record(job, request, result, attempt, duration)
+        return completed_record(job, request, result, attempt, duration)
     except Exception as exc:
         duration = time.perf_counter() - started_at
-        return _failed_record(job, request, exc, attempt, duration)
+        return failed_record(job, request, exc, attempt, duration)
 
 
 def _save_record(
@@ -216,10 +240,12 @@ def _save_record(
     attempts: dict[str, int],
     progress: RunProgress,
     pricing: TokenPricing | None,
+    output_contract: OutputContract | None,
 ) -> None:
     """Save one returned record and update parent-owned progress."""
+    validate_output(record, output_contract)
     add_cost_estimate(record, pricing)
-    _append_record(output_file, record)
+    append_record(output_file, record)
     latest[record["job_id"]] = record
     attempts[record["job_id"]] = record["attempt"]
     status = progress.update(record)
@@ -228,166 +254,3 @@ def _save_record(
     else:
         error_type = (record.get("error") or {}).get("type", "Error")
         print(f"[{number}/{total}] fail {record['job_id']}: {error_type} | {status}")
-
-
-def _prepare_job(
-    job: LLMJob,
-    default_model: Optional[str],
-) -> tuple[LLMJob, dict[str, Any]]:
-    """Resolve defaults and fingerprint the exact request."""
-    model = job.model or default_model
-    request = {
-        "model": model,
-        "instructions": job.instructions,
-        "input": job.prompt,
-        "max_output_tokens": job.max_output_tokens,
-        "output_format": job.output_format,
-        "metadata": job.metadata,
-    }
-    encoded = json.dumps(
-        request,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    request["request_hash"] = hashlib.sha256(encoded).hexdigest()
-    return job, request
-
-
-def _completed_record(
-    job: LLMJob,
-    request: dict[str, Any],
-    result: LLMResult,
-    attempt: int,
-    duration_seconds: float,
-) -> dict[str, Any]:
-    """Build one durable record from a completed call."""
-    usage = None
-    if result.usage is not None:
-        usage = {
-            "input_tokens": result.usage.input_tokens,
-            "cached_input_tokens": result.usage.cached_input_tokens,
-            "output_tokens": result.usage.output_tokens,
-            "reasoning_tokens": result.usage.reasoning_tokens,
-            "total_tokens": result.usage.total_tokens,
-        }
-
-    return {
-        "job_id": job.job_id,
-        "request_hash": request["request_hash"],
-        "attempt": attempt,
-        "status": "completed",
-        "recorded_at": _now(),
-        "duration_seconds": round(duration_seconds, 6),
-        "metadata": job.metadata,
-        "request": _saved_request(request),
-        "model": result.model or request["model"],
-        "output_text": result.text,
-        "response_id": result.response_id,
-        "usage": usage,
-        "response": _response_as_dict(result.response),
-        "error": None,
-    }
-
-
-def _failed_record(
-    job: LLMJob,
-    request: dict[str, Any],
-    error: Exception,
-    attempt: int,
-    duration_seconds: float,
-) -> dict[str, Any]:
-    """Build one durable record without hiding the original exception."""
-    # lab_llm response errors retain the complete unsuccessful API response.
-    response = error.response if isinstance(error, LLMResponseError) else None
-    return {
-        "job_id": job.job_id,
-        "request_hash": request["request_hash"],
-        "attempt": attempt,
-        "status": "failed",
-        "recorded_at": _now(),
-        "duration_seconds": round(duration_seconds, 6),
-        "metadata": job.metadata,
-        "request": _saved_request(request),
-        "model": request["model"],
-        "output_text": None,
-        "response_id": getattr(error, "response_id", None),
-        "usage": None,
-        "response": _response_as_dict(response) if response is not None else None,
-        "error": {
-            "type": type(error).__name__,
-            "message": str(error),
-            "request_id": getattr(error, "request_id", None),
-        },
-    }
-
-
-def _response_as_dict(response: Any) -> Any:
-    """Convert an SDK response to JSON-compatible data."""
-    if hasattr(response, "model_dump"):
-        return response.model_dump(mode="json")
-    if hasattr(response, "model_dump_json"):
-        return json.loads(response.model_dump_json())
-
-    # This fallback mainly helps small fake clients and compatible providers.
-    return {"repr": repr(response)}
-
-
-def _saved_request(request: dict[str, Any]) -> dict[str, Any]:
-    """Keep the exact model request beside its result."""
-    return {
-        "model": request["model"],
-        "instructions": request["instructions"],
-        "input": request["input"],
-        "max_output_tokens": request["max_output_tokens"],
-        "output_format": request["output_format"],
-    }
-
-
-def _append_record(output_file, record: dict[str, Any]) -> None:
-    """Append and flush one record before the next API call begins."""
-    output_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-    output_file.flush()
-
-
-def _read_records(path: Path) -> list[dict[str, Any]]:
-    """Read an existing run file and report malformed lines clearly."""
-    if not path.exists():
-        return []
-
-    records = []
-    with path.open(encoding="utf-8") as input_file:
-        for line_number, line in enumerate(input_file, start=1):
-            if not line.strip():
-                continue
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"invalid JSON in {path} at line {line_number}"
-                ) from exc
-            if not isinstance(record, dict) or not record.get("job_id"):
-                raise ValueError(
-                    f"invalid job record in {path} at line {line_number}"
-                )
-            records.append(record)
-    return records
-
-
-def _latest_by_job(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    """Return the last saved attempt for each job ID."""
-    return {record["job_id"]: record for record in records}
-
-
-def _attempt_counts(records: list[dict[str, Any]]) -> dict[str, int]:
-    """Count prior attempts for each job ID."""
-    counts: dict[str, int] = {}
-    for record in records:
-        job_id = record["job_id"]
-        counts[job_id] = counts.get(job_id, 0) + 1
-    return counts
-
-
-def _now() -> str:
-    """Return an unambiguous UTC timestamp."""
-    return datetime.now(timezone.utc).isoformat()

@@ -11,7 +11,6 @@ Run every example:
 Run one example by name:
     ./scripts/run.sh examples/02_examples_gallery/examples_gallery.py cutoff
 
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 import sys
 

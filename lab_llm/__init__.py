@@ -11,6 +11,7 @@ from .files import delete_file, temporary_file, upload_file
 from .jobs import LLMJob, run_jobs
 from .inputs import Item, ItemBank, PromptTemplate, Transcript, TranscriptBank
 from .progress import TokenPricing, load_token_pricing
+from .ratings import run_rating_batch
 from .structured import OutputContract
 from .tools import code_interpreter_tool, web_search_tool
 
@@ -37,6 +38,7 @@ __all__ = [
     "ItemBank",
     "TokenPricing",
     "load_token_pricing",
+    "run_rating_batch",
     "OutputContract",
 ]
 __version__ = "0.1.0"

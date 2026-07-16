@@ -1,7 +1,6 @@
 """Nested structured output with the OpenAI SDK and JSON Schema.
 
-Run:  ./scripts/run.sh examples/10_complex_structured_outputs/example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
+Run:  ./scripts/run.sh examples/11_complex_structured_outputs/example.py
 """
 import json
 from pathlib import Path
@@ -13,7 +12,7 @@ from openai import OpenAI                  # the OpenAI Python package
 
 client = OpenAI()                          # carries your key
 
-template = Path("examples/10_complex_structured_outputs/prompt.txt").read_text()
+template = Path("examples/11_complex_structured_outputs/prompt.txt").read_text()
 transcript = Path("data/transcripts/transcript_03.txt").read_text()
 prompt = template.format(date="2026-07-01", transcript=transcript)
 

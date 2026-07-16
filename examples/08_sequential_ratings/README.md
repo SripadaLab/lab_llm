@@ -2,6 +2,10 @@
 
 Rate every transcript on every item. Sequential or multiprocess.
 
+The script keeps every study input visible: prompt, transcripts, items,
+instructions, pricing, output folder, and response limit. `run_rating_batch()`
+handles the repeatable run machinery.
+
 ## Inputs
 
 - `data/transcripts/`: one plain-text file per transcript. The filename stem is
@@ -43,14 +47,14 @@ On Windows:
 `--run-name` is required. It creates `runs/<run-name>/`. For this example,
 results go to `runs/anxiety-structured-pilot/`:
 
-The three input-path options are optional. Without them, the example uses
-`data/transcripts/`, `data/items.csv`, and `data/instructions.txt`.
+The script displays every default path. The path flags are optional overrides.
+Use them to run another study without editing the example.
 
 - `manifest.json`: model, every source-file hash, and expected job count.
 - `jobs.jsonl`: every exact request, saved before the first API call.
 - `raw_results.jsonl`: complete responses. One saved attempt per line.
 - `results.csv`: every rating and failure in one analysis-ready table.
-- `summary.json`: job counts, parsing, tokens, cost, runtime, and models.
+- `summary.json`: job counts, parse rate, tokens, cost, runtime, and models.
 
 `--workers` defaults to `1`: sequential and easiest to inspect. A larger value
 uses that many worker processes. Start small. More workers can hit provider
@@ -77,10 +81,10 @@ After each request, the runner prints elapsed time, ETA, cost so far, and an
 estimated final cost. The estimate uses actual token usage from completed jobs
 for the jobs still pending. It becomes more useful as the run progresses.
 
-Responses include token usage, not dollar cost. `--pricing-file` is required.
-The included `data/model_pricing.csv` is a snapshot of OpenAI's published
-standard token rates. The selected row is copied into `manifest.json`; the
-entire pricing file is hashed with the other run inputs.
+Responses include token usage, not dollar cost. The script points to the
+included `data/model_pricing.csv` snapshot. `--pricing-file` can override it.
+The selected row is copied into `manifest.json`; the entire pricing file is
+hashed with the other run inputs.
 
 Check and refresh the table from its linked source before a real study,
 especially after changing the model or service tier. These rates assume
@@ -89,16 +93,19 @@ standard processing. The estimate covers model tokens only.
 The JSONL files include rendered prompts and transcript text. The entire
 `runs/` folder is gitignored. Treat it as research data.
 
-Run the script again after an interruption. Completed job IDs are skipped.
-Failed jobs are tried again. Changed inputs or prompts are rejected; start a
-new run folder for a changed run.
+Run the script again after an interruption. Completed, validated job IDs are
+skipped. API and Pydantic validation failures are tried again. Changed inputs,
+prompts, or output contracts are rejected; start a new run folder for a changed
+run.
 
 The OpenAI SDK handles short request-level retries using `OPENAI_MAX_RETRIES`.
 After a final failure, the runner saves the error and moves to the next job. It
 does not retry that job again during the same pass. Running the script again
 explicitly tries failed jobs again.
 
-Each request uses a strict JSON Schema with one `rating` field. A numeric value
-must fall inside that item's `min_value` and `max_value`; `null` means the
-transcript could not be scored. Application-side validation still checks every
-returned value. Invalid output is kept as `raw_text` and marked `parse_failed`.
+Each request uses one versioned Pydantic contract with a `rating` field. The
+runner validates the shape and type before marking the job complete. A numeric
+value must also fall inside that item's `min_value` and `max_value`; `null`
+means the transcript could not be scored. The ratings helper applies that
+item-specific check. Invalid output is kept as `raw_text` and marked
+`parse_failed`.

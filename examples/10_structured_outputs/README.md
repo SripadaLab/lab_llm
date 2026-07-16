@@ -6,15 +6,15 @@ research task.
 ## Run
 
 ```bash
-./scripts/run.sh examples/09_structured_outputs/example.py
-./scripts/run.sh examples/09_structured_outputs/nicer_example.py
+./scripts/run.sh examples/10_structured_outputs/example.py
+./scripts/run.sh examples/10_structured_outputs/nicer_example.py
 ```
 
 On Windows:
 
 ```powershell
-.\scripts\run.ps1 examples\09_structured_outputs\example.py
-.\scripts\run.ps1 examples\09_structured_outputs\nicer_example.py
+.\scripts\run.ps1 examples\10_structured_outputs\example.py
+.\scripts\run.ps1 examples\10_structured_outputs\nicer_example.py
 ```
 
 ## Two versions

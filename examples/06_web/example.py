@@ -1,7 +1,6 @@
 """Module 1 - give one response access to web search.
 
 Run:  ./scripts/run.sh examples/06_web/example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv
 load_dotenv()                              # load .env values into the environment

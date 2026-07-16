@@ -4,7 +4,6 @@ Upload a CSV of transcripts and a text rubric, reference both in one request,
 and the model applies the rubric to the data.
 
 Run:  ./scripts/run.sh examples/05_files/example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv
 load_dotenv()                              # load .env values into the environment

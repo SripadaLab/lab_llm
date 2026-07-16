@@ -1,7 +1,6 @@
 """Module 1 - let the model write and run Python.
 
 Run:  ./scripts/run.sh examples/07_code_interpreter/example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv
 load_dotenv()                              # load .env values into the environment

@@ -1,7 +1,6 @@
 """Module 1 - the same two-file call, using lab_llm.
 
 Run:  ./scripts/run.sh examples/05_files/nicer_example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from lab_llm import Conversation, temporary_file  # reusable helpers
 

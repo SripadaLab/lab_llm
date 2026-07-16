@@ -11,7 +11,10 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
   conversations.py      stored and stateless multi-turn helpers
-  jobs.py               sequential or multiprocess jobs; durable output
+  jobs.py               sequential or multiprocess job execution
+  records.py            durable responses and resume bookkeeping
+  ratings.py            easy transcript x item rating batches
+  runs.py               standard batch arguments, plans, and manifests
   inputs.py             prompt templates, transcripts, and item banks
   progress.py           elapsed time, ETA, and token-cost estimates
   structured.py         versioned output types and validation rules
@@ -28,10 +31,12 @@ examples/                runnable examples from the workshop
   06_web/                hosted web-search example
   07_code_interpreter/   hosted Python example
   08_sequential_ratings/ transcript x item ratings; one or more workers
-  09_structured_outputs/ simple JSON Schema and typed output
-  10_complex_structured_outputs/ nested evidence and justifications
+  09_check_results/      classify saved rating outcomes
+  10_structured_outputs/ simple JSON Schema and typed output
+  11_complex_structured_outputs/ nested evidence and justifications
 data/                   shared sample transcripts, item banks, and instructions
   model_pricing.csv      saved OpenAI token-price snapshot for long runs
+  synthetic_rating_results.jsonl  five example rating outcomes
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
@@ -99,13 +104,20 @@ retries failed ones. Pass explicit `TokenPricing` to add live elapsed time,
 ETA, usage cost, and projected final cost. OpenAI responses contain token
 counts, not a dollar charge; the saved rate card makes the estimate auditable.
 
+`run_rating_batch()` is the short path for transcript x item studies. Define
+the Pydantic result and list every study path. The helper supplies the standard
+command line, preflight, resume, validation, CSV, and run summary. Use
+`run_jobs()` directly when a study needs a different job shape.
+
 Jobs may also carry an explicit Responses API `output_format`. The ratings
 example uses strict Structured Outputs, validates item-specific ranges
 again locally, supports a zero-call `--dry-run`, and saves `summary.json`.
 
 `OutputContract` versions a Pydantic output type. It produces the Responses API
-JSON Schema and parses JSON into that Python type. Research-specific checks
-remain visible in the calling code.
+JSON Schema and parses JSON into that Python type. Pass it to `run_jobs()` to
+validate each completed response before the parent process saves it. Parsed
+output is saved as plain JSON. With the lower-level runner, research-specific
+checks remain in the calling code.
 
 Optional `.env` settings:
 

@@ -1,0 +1,5 @@
+{"job_id":"T01-anxiety","status":"failed","error":{"type":"TimeoutError","message":"Connection timed out"}}
+{"job_id":"T02-anxiety","status":"validation_failed","error":{"type":"ValidationError","message":"rating: Field required"}}
+{"job_id":"T03-anxiety","status":"completed","parsed_output":{"rating":72},"metadata":{"min_value":0,"max_value":100}}
+{"job_id":"T04-anxiety","status":"completed","parsed_output":{"rating":null},"metadata":{"min_value":0,"max_value":100}}
+{"job_id":"T05-anxiety","status":"completed","parsed_output":{"rating":117},"metadata":{"min_value":0,"max_value":100}}

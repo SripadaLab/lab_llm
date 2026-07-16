@@ -1,7 +1,6 @@
 """Structured output with the OpenAI SDK and a JSON Schema dictionary.
 
-Run:  ./scripts/run.sh examples/09_structured_outputs/example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
+Run:  ./scripts/run.sh examples/10_structured_outputs/example.py
 """
 import json
 from pathlib import Path
@@ -16,7 +15,7 @@ client = OpenAI()                          # carries your key
 minimum = 0
 maximum = 4
 
-template = Path("examples/09_structured_outputs/prompt.txt").read_text()
+template = Path("examples/10_structured_outputs/prompt.txt").read_text()
 transcript = Path("data/transcripts/transcript_03.txt").read_text()
 prompt = template.format(
     item="How much worry or anxiety does the speaker express?",

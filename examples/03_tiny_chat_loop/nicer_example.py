@@ -1,7 +1,6 @@
 """Module 1 - the tiny chat loop, using the lab_llm helper.
 
 Run:  ./scripts/run.sh examples/03_tiny_chat_loop/nicer_example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from lab_llm import Conversation       # the workshop's conversation helper
 

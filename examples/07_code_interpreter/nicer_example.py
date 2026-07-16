@@ -1,7 +1,6 @@
 """Module 1 - the same Code Interpreter call, using lab_llm.
 
 Run:  ./scripts/run.sh examples/07_code_interpreter/nicer_example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from lab_llm import Conversation, code_interpreter_tool  # conversation + tool config
 

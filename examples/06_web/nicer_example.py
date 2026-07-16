@@ -1,7 +1,6 @@
 """Module 1 - the same web-search call, using lab_llm.
 
 Run:  ./scripts/run.sh examples/06_web/nicer_example.py
-Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from lab_llm import Conversation, web_search_tool  # conversation + tool config
 
