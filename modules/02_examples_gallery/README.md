@@ -1,4 +1,4 @@
-# Module 1: A field gallery
+# Module 1: Examples Gallery
 
 Eight small prompts, and the response-object fields each one brings to life.
 This mirrors the workshop site (Module 1, page 5), but here you run them for
@@ -23,11 +23,11 @@ real against your own key.
 
 ```bash
 # every example
-./scripts/run.sh modules/02_field_gallery/field_gallery.py          # macOS / Linux
-.\scripts\run.ps1 modules\02_field_gallery\field_gallery.py         # Windows
+./scripts/run.sh modules/02_examples_gallery/examples_gallery.py          # macOS / Linux
+.\scripts\run.ps1 modules\02_examples_gallery\examples_gallery.py         # Windows
 
 # just one
-./scripts/run.sh modules/02_field_gallery/field_gallery.py cutoff
+./scripts/run.sh modules/02_examples_gallery/examples_gallery.py cutoff
 ```
 
 ## What to expect

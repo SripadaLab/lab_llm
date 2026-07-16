@@ -6,10 +6,10 @@ counts vary per run; the shapes and status fields do not. The last two
 examples show calls that fail: the API raises an error you can catch.
 
 Run every example:
-    ./scripts/run.sh modules/02_field_gallery/field_gallery.py
+    ./scripts/run.sh modules/02_examples_gallery/examples_gallery.py
 
 Run one example by name:
-    ./scripts/run.sh modules/02_field_gallery/field_gallery.py cutoff
+    ./scripts/run.sh modules/02_examples_gallery/examples_gallery.py cutoff
 
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
