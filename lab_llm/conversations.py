@@ -1,7 +1,7 @@
 """Small wrappers for multi-turn model conversations."""
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from .calls import LLMResult
 from .config import get_client, get_model
@@ -19,21 +19,48 @@ class Conversation:
         self._client = get_client()
         self.model = model or get_model()
         self.instructions = instructions
+
+        # The service stores turns attached to this conversation ID.
         conversation = self._client.conversations.create()
         self.conversation_id = conversation.id
 
-    def send(self, prompt: str) -> LLMResult:
+    def send(
+        self,
+        prompt: str,
+        *,
+        file_id: Optional[str] = None,
+        tools: Optional[list[dict[str, Any]]] = None,
+    ) -> LLMResult:
         """Send one turn and return the reply with the full response."""
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("prompt must be a non-empty string")
+        if file_id is not None and (
+            not isinstance(file_id, str) or not file_id.strip()
+        ):
+            raise ValueError("file_id must be a non-empty string")
+
+        input_value: Any = prompt
+        if file_id is not None:
+            # A file and its prompt are content items in one user message.
+            input_value = [{
+                "role": "user",
+                "content": [
+                    {"type": "input_file", "file_id": file_id},
+                    {"type": "input_text", "text": prompt},
+                ],
+            }]
 
         kwargs: dict = {
             "model": self.model,
             "conversation": self.conversation_id,
-            "input": prompt,
+            "input": input_value,
         }
+
+        # Omit unused options. Let the SDK apply its own defaults.
         if self.instructions is not None:
             kwargs["instructions"] = self.instructions
+        if tools is not None:
+            kwargs["tools"] = tools
 
         response = self._client.responses.create(**kwargs)
         return LLMResult.from_response(response)

@@ -119,6 +119,46 @@ class ConversationTests(TestCase):
             },
         )
 
+    def test_sends_a_file_and_tools_when_supplied(self):
+        response = SimpleNamespace(
+            id="resp_test",
+            output_text="Done",
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        responses = FakeResponses([response])
+        client = SimpleNamespace(
+            conversations=SimpleNamespace(
+                create=lambda: SimpleNamespace(id="conv_test")
+            ),
+            responses=responses,
+        )
+        tools = [{"type": "web_search"}]
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            Conversation(model="test-model").send(
+                "Read this file.",
+                file_id="file_test",
+                tools=tools,
+            )
+
+        self.assertEqual(
+            responses.calls[0],
+            {
+                "model": "test-model",
+                "conversation": "conv_test",
+                "input": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "input_file", "file_id": "file_test"},
+                        {"type": "input_text", "text": "Read this file."},
+                    ],
+                }],
+                "tools": tools,
+            },
+        )
+
     def test_rejects_invalid_turns_before_creating_a_response(self):
         responses = FakeResponses()
         client = SimpleNamespace(
@@ -135,6 +175,11 @@ class ConversationTests(TestCase):
             with self.subTest(prompt=prompt):
                 with self.assertRaisesRegex(ValueError, "non-empty string"):
                     chat.send(prompt)
+
+        for file_id in ("", "   "):
+            with self.subTest(file_id=file_id):
+                with self.assertRaisesRegex(ValueError, "file_id"):
+                    chat.send("Hello", file_id=file_id)
 
         self.assertEqual(responses.calls, [])
 

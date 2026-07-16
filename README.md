@@ -11,6 +11,8 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
   conversations.py      stored and stateless multi-turn helpers
+  files.py              upload and delete Files API objects
+  tools.py              readable hosted-tool configurations
   config.py             API key + model, loaded from the environment
   errors.py             small package-specific exception types
 modules/                runnable examples from the workshop
@@ -18,13 +20,16 @@ modules/                runnable examples from the workshop
   02_examples_gallery/  response-object field examples
   03_tiny_chat_loop/    multi-turn chat: raw SDK + lab_llm
   04_stateless_conversation/  local history; API response storage off
+  05_files/              Files API upload and response input
+  06_web/                hosted web-search example
+  07_code_interpreter/   hosted Python example
 data/                   shared sample data (transcripts.csv, items.csv, …)
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
-Each module contains a runnable `example.py`. Where both approaches are shown,
-`nicer_example.py` repeats the raw SDK example through `lab_llm`. The core is
-written once. Later examples build on it.
+Each module contains runnable examples. Files with `nicer_example` in the name
+repeat the raw SDK calls through `lab_llm`. The core is written once. Later
+examples build on it.
 
 ## Two ways to use this repo
 
