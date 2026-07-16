@@ -1,19 +1,22 @@
-"""Module 1 — your first programmatic call.
+"""Module 1 - your first programmatic call.
 
-Run:  python modules/01_first_call/example.py
-Needs OPENAI_API_KEY in your environment (see the root README).
+The same example you ran live on the workshop site (Module 1, page 2),
+now on your own machine.
+
+Run:  ./scripts/run.sh modules/01_first_call/example.py
+Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
-from lab_llm import call_llm
+from dotenv import load_dotenv
+load_dotenv()                        # read OPENAI_API_KEY from your .env
 
-result = call_llm(
-    prompt=(
-        "Summarize this abstract in two sentences: "
-        "Daily mood variability was linked to sleep timing across six weeks. "
-        "Effects were strongest in participants with irregular schedules."
-    ),
-    instructions="You are a careful research assistant. Avoid hype.",
-    max_output_tokens=200,
+from openai import OpenAI            # the OpenAI Python package
+
+client = OpenAI()                    # carries your key
+
+response = client.responses.create(  # ask the model for a reply
+    model="gpt-5.4-mini",            # which model answers
+    instructions="Be concise.",      # how it behaves
+    input="Why is the sky blue?",    # your request
 )
 
-print(result.text)
-print(result.usage)
+print(response.output_text)          # the reply, as text
