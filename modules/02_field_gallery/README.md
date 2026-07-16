@@ -16,6 +16,8 @@ real against your own key.
 | `format`    | The `instructions` come back with the response.     |
 | `structure` | The long path vs the `output_text` shortcut.        |
 | `identity`  | `id`, `created_at`, `completed_at`.                  |
+| `bad_model` | A bad model name raises `BadRequestError`.          |
+| `bad_setting` | An out-of-range setting is rejected before the call. |
 
 ## Run
 

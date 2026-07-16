@@ -2,7 +2,8 @@
 
 Each function runs one real call and prints the response fields it brings to
 life. This mirrors the workshop site (Module 1, page 5). Wording and token
-counts vary per run; the shapes and status fields do not.
+counts vary per run; the shapes and status fields do not. The last two
+examples show calls that fail: the API raises an error you can catch.
 
 Run every example:
     ./scripts/run.sh modules/02_field_gallery/field_gallery.py
@@ -13,6 +14,8 @@ Run one example by name:
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 import sys
+
+from openai import BadRequestError
 
 from lab_llm import call_llm
 from lab_llm.config import get_client, get_model
@@ -107,6 +110,34 @@ def identity():
     print("completed_at:", r.response.completed_at)
 
 
+def bad_model():
+    """9. A bad model name raises an error - catch it and read why."""
+    try:
+        response = get_client().responses.create(
+            model="gpt-5.4-mega",   # not a real model
+            input="Hello!",
+        )
+        print(response.output_text)
+    except BadRequestError as e:
+        print("status_code:", e.status_code)
+        print("code       :", e.code)
+        print("message    :", e.body["message"])
+
+
+def bad_setting():
+    """10. An out-of-range setting is rejected before any generation."""
+    try:
+        response = get_client().responses.create(
+            model=get_model(),
+            input="Hello!",
+            temperature=5,          # valid range is 0.0 - 2.0
+        )
+        print(response.output_text)
+    except BadRequestError as e:
+        print("code   :", e.code)
+        print("message:", e.body["message"])
+
+
 EXAMPLES = {
     "simple": simple,
     "reasoning": reasoning,
@@ -116,6 +147,8 @@ EXAMPLES = {
     "format": fmt,
     "structure": structure,
     "identity": identity,
+    "bad_model": bad_model,
+    "bad_setting": bad_setting,
 }
 
 
