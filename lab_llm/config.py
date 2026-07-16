@@ -21,13 +21,18 @@ def _load_dotenv() -> None:
 
 
 def get_model() -> str:
-    """The model to use, from OPENAI_MODEL or the default."""
-    return os.environ.get("OPENAI_MODEL", DEFAULT_MODEL)
+    """The model to use, from the DEFAULT_MODEL env var or the built-in default."""
+    _load_dotenv()
+    return os.environ.get("DEFAULT_MODEL", DEFAULT_MODEL)
 
 
 @lru_cache(maxsize=1)
 def get_client():
-    """Return a cached OpenAI client. Reads OPENAI_API_KEY from the environment."""
+    """Return a cached OpenAI client.
+
+    Reads OPENAI_API_KEY (required) and OPENAI_BASE_URL (optional, to target a
+    compatible endpoint) from the environment or a local .env.
+    """
     _load_dotenv()
     if not os.environ.get("OPENAI_API_KEY"):
         raise RuntimeError(
