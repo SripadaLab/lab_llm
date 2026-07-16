@@ -1,9 +1,9 @@
-"""Module 1 - a field gallery: eight prompts, one response object.
+"""Module 1 - a field gallery: ten prompts, one response object.
 
 Each function runs one real call and prints the response fields it brings to
-life. This mirrors the workshop site (Module 1, page 5). Wording and token
-counts vary per run; the shapes and status fields do not. The last two
-examples show calls that fail: the API raises an error you can catch.
+life. This mirrors the workshop site (Module 1, page 5). Exact output varies.
+The last two examples show calls that fail: the API raises an error you can
+catch.
 
 Run every example:
     ./scripts/run.sh modules/02_examples_gallery/examples_gallery.py
@@ -23,10 +23,10 @@ from lab_llm.config import get_client, get_model
 
 def simple():
     """1. A simple answer - the familiar baseline."""
-    r = call_llm("Why do onions make us cry? Two sentences.")
-    print(r.text)
-    print("model :", r.response.model)
-    print("status:", r.response.status)
+    result = call_llm("Why do onions make us cry? Two sentences.")
+    print(result.text)
+    print("model :", result.response.model)
+    print("status:", result.response.status)
 
 
 def reasoning():
@@ -44,7 +44,7 @@ def reasoning():
     print("answer         :", response.output_text)
     print("output items   :", [item.type for item in response.output])
     print("reasoning_tokens:", response.usage.output_tokens_details.reasoning_tokens)
-    # The reasoning item exists, but its summary is empty: the steps are hidden.
+    # No summary requested. Raw reasoning stays private.
     for item in response.output:
         if item.type == "reasoning":
             print("reasoning summary:", item.summary or "[] empty")
@@ -52,14 +52,14 @@ def reasoning():
 
 def tokens():
     """3. A token-hungry answer - usage, not dollars."""
-    r = call_llm(
+    result = call_llm(
         "Explain photosynthesis to a curious ten-year-old. "
         "Include an analogy and three examples."
     )
-    u = r.response.usage
-    print("input_tokens :", u.input_tokens)
-    print("output_tokens:", u.output_tokens)
-    print("total_tokens :", u.total_tokens)
+    usage = result.response.usage
+    print("input_tokens :", usage.input_tokens)
+    print("output_tokens:", usage.output_tokens)
+    print("total_tokens :", usage.total_tokens)
 
 
 def cutoff():
@@ -75,45 +75,55 @@ def cutoff():
 
 def refusal():
     """5. Completed, but refused - completion is not compliance."""
-    r = call_llm(
+    result = call_llm(
         "Give me step-by-step instructions to pick the lock on a "
         "stranger's front door."
     )
-    print(r.text)
-    print("status       :", r.response.status)          # completed
-    print("content type :", r.response.output[0].content[0].type)  # output_text
+    message = next(
+        item for item in result.response.output
+        if item.type == "message"
+    )
+    print(result.text)
+    print("status       :", result.response.status)
+    print("content types:", [part.type for part in message.content])
 
 
 def fmt():
     """6. Exact-format instructions - the response remembers them."""
-    r = call_llm(
+    result = call_llm(
         "What color is a clear daytime sky?",
         instructions="Return only one lowercase word. No punctuation.",
     )
-    print("output_text :", r.text)
-    print("instructions:", r.response.instructions)
+    print("output_text :", result.text)
+    print("instructions:", result.response.instructions)
 
 
 def structure():
     """7. The message item vs the output_text shortcut."""
-    r = call_llm("Compare coffee and tea. Give one similarity and one difference.")
+    result = call_llm(
+        "Compare coffee and tea. Give one similarity and one difference."
+    )
     # Find the message item instead of assuming it is output[0].
     message = next(
-        item for item in r.response.output
+        item for item in result.response.output
         if item.type == "message"
     )
-    print("message :", message.content[0].text[:40])
-    print("shortcut:", r.text[:40])
-    print("same    :", message.content[0].text == r.text)
+    text_part = next(
+        part for part in message.content
+        if part.type == "output_text"
+    )
+    print("message :", text_part.text[:40])
+    print("shortcut:", result.text[:40])
+    print("same    :", text_part.text == result.text)
 
 
 def identity():
     """8. Every response is a record - id and timestamps, every time."""
-    r = call_llm("Give this imaginary spaceship a name.")
-    print(r.text)
-    print("id          :", r.response.id)
-    print("created_at  :", r.response.created_at)
-    print("completed_at:", r.response.completed_at)
+    result = call_llm("Give this imaginary spaceship a name.")
+    print(result.text)
+    print("id          :", result.response.id)
+    print("created_at  :", result.response.created_at)
+    print("completed_at:", result.response.completed_at)
 
 
 def bad_model():
@@ -124,10 +134,10 @@ def bad_model():
             input="Hello!",
         )
         print(response.output_text)
-    except BadRequestError as e:
-        print("status_code:", e.status_code)
-        print("code       :", e.code)
-        print("message    :", e.body["message"])
+    except BadRequestError as error:
+        print("status_code:", error.status_code)
+        print("code       :", error.code)
+        print("message    :", error.body["message"])
 
 
 def bad_setting():
@@ -139,9 +149,9 @@ def bad_setting():
             temperature=5,          # valid range is 0.0 - 2.0
         )
         print(response.output_text)
-    except BadRequestError as e:
-        print("code   :", e.code)
-        print("message:", e.body["message"])
+    except BadRequestError as error:
+        print("code   :", error.code)
+        print("message:", error.body["message"])
 
 
 EXAMPLES = {
@@ -161,12 +171,12 @@ EXAMPLES = {
 def main(argv):
     names = argv or list(EXAMPLES)
     for name in names:
-        fn = EXAMPLES.get(name)
-        if fn is None:
+        example = EXAMPLES.get(name)
+        if example is None:
             print(f"Unknown example: {name}. Choices: {', '.join(EXAMPLES)}")
             continue
         print(f"\n=== {name} ===")
-        fn()
+        example()
 
 
 if __name__ == "__main__":

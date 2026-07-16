@@ -10,22 +10,20 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 ```
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
+  conversations.py      Conversation, the reusable multi-turn helper
   config.py             API key + model, loaded from the environment
   errors.py             small package-specific exception types
-modules/                one folder per workshop module
-  01_first_call/        example.py + README (+ expected output)
-  02_ratings_at_scale/
-  03_structured_outputs/
-  04_multi_step_workflows/
-  05_agentic_assistants/
-  06_running_pipelines/
+modules/                runnable examples from the workshop
+  01_first_call/        one call: raw SDK + lab_llm
+  02_examples_gallery/  response-object field examples
+  03_tiny_chat_loop/    multi-turn chat: raw SDK + lab_llm
 data/                   shared sample data (transcripts.csv, items.csv, …)
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
-Module 1 uses the OpenAI package directly, the same first call you ran on the
-site. From Module 2 on, each `modules/0N_*/example.py` imports from `lab_llm`.
-The core is written once. Every module builds on the last.
+The raw `example.py` files match the code taught on the site.
+`nicer_example.py` shows the same behavior through `lab_llm`. The core is
+written once. Later examples build on it.
 
 ## Two ways to use this repo
 
@@ -65,8 +63,9 @@ the folder removes the project files.
 Your key lives in `.env` (gitignored) and is read from the environment. It never
 lives in code.
 
-The helper keeps the complete OpenAI response. Reply text and token usage stay
-easy to reach.
+The helpers keep the complete OpenAI response. Reply text and token usage stay
+easy to reach. `Conversation` also keeps one durable conversation ID and
+reuses its instructions across turns.
 
 `call_llm()` fails closed when a response is incomplete or failed. It raises
 `LLMResponseError` with the full response attached. OpenAI SDK exceptions are
@@ -85,8 +84,8 @@ Leave either setting unset to use the OpenAI SDK default.
 ### Run a specific module
 
 ```bash
-./scripts/run.sh modules/02_ratings_at_scale/example.py     # macOS / Linux
-.\scripts\run.ps1 modules\02_ratings_at_scale\example.py    # Windows
+./scripts/run.sh modules/03_tiny_chat_loop/example.py      # macOS / Linux
+.\scripts\run.ps1 modules\03_tiny_chat_loop\example.py     # Windows
 ```
 
 ### Remove the local install

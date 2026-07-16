@@ -32,17 +32,29 @@ class LLMResult:
     response_id: Optional[str] = None
     status: Optional[str] = None
 
+    @classmethod
+    def from_response(cls, response) -> "LLMResult":
+        """Build a result from one completed OpenAI response."""
+        if getattr(response, "status", None) != "completed":
+            raise LLMResponseError(response)
 
-def _read_usage(response) -> Optional[Usage]:
-    """Pull token counts off the response, if the API returned any."""
-    raw = getattr(response, "usage", None)
-    if not raw:
-        return None
-    return Usage(
-        input_tokens=getattr(raw, "input_tokens", None),
-        output_tokens=getattr(raw, "output_tokens", None),
-        total_tokens=getattr(raw, "total_tokens", None),
-    )
+        raw_usage = getattr(response, "usage", None)
+        usage = None
+        if raw_usage:
+            usage = Usage(
+                input_tokens=getattr(raw_usage, "input_tokens", None),
+                output_tokens=getattr(raw_usage, "output_tokens", None),
+                total_tokens=getattr(raw_usage, "total_tokens", None),
+            )
+
+        return cls(
+            text=response.output_text,
+            response=response,
+            model=getattr(response, "model", None),
+            usage=usage,
+            response_id=getattr(response, "id", None),
+            status=getattr(response, "status", None),
+        )
 
 
 def call_llm(
@@ -86,15 +98,4 @@ def call_llm(
         kwargs["max_output_tokens"] = max_output_tokens
 
     response = get_client().responses.create(**kwargs)
-
-    if getattr(response, "status", None) != "completed":
-        raise LLMResponseError(response)
-
-    return LLMResult(
-        text=response.output_text,
-        response=response,
-        model=getattr(response, "model", None),
-        usage=_read_usage(response),
-        response_id=getattr(response, "id", None),
-        status=getattr(response, "status", None),
-    )
+    return LLMResult.from_response(response)

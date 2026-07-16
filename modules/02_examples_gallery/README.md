@@ -1,6 +1,6 @@
 # Module 1: Examples Gallery
 
-Eight small prompts, and the response-object fields each one brings to life.
+Ten small prompts, and the response-object fields each one brings to life.
 This mirrors the workshop site (Module 1, page 5), but here you run them for
 real against your own key.
 
@@ -37,8 +37,7 @@ does not complete.
 
 ## What to expect
 
-The exact wording and token counts vary each run. The field shapes and the
-`status` values are stable, which is the whole point.
+Exact output varies. The fields explored here remain the same.
 
 The `reasoning` example needs a parameter (`reasoning={"effort": "medium"}`)
 that the `call_llm` helper does not wrap, so it drops down to the raw client.
