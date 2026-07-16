@@ -92,13 +92,15 @@ def fmt():
 
 
 def structure():
-    """7. Nested underneath, simple on top."""
+    """7. The message item vs the output_text shortcut."""
     r = call_llm("Compare coffee and tea. Give one similarity and one difference.")
-    # The long path and the shortcut return the same text.
-    long_path = r.response.output[0].content[0].text
-    print("output[0].content[0].text:", long_path[:60], "...")
-    print("output_text              :", r.text[:60], "...")
-    print("same text:", long_path == r.text)
+    # Find the message item instead of assuming it is output[0].
+    message = next(
+        item for item in r.response.output
+        if item.type == "message"
+    )
+    print(message.content[0].text)
+    print(r.text)
 
 
 def identity():
