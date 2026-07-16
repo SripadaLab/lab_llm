@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from lab_llm import Conversation, LLMResponseError
+from lab_llm import Conversation, LLMResponseError, StatelessConversation
 
 
 class FakeResponses:
@@ -178,3 +178,110 @@ class ConversationTests(TestCase):
             chat.send("Hello")
 
         self.assertIs(caught.exception, error)
+
+
+class StatelessConversationTests(TestCase):
+    def test_replays_complete_history_without_provider_state(self):
+        reasoning = SimpleNamespace(type="reasoning")
+        first_message = SimpleNamespace(type="message")
+        second_message = SimpleNamespace(type="message")
+        first = SimpleNamespace(
+            id="resp_first",
+            output_text="First reply",
+            output=[reasoning, first_message],
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        second = SimpleNamespace(
+            id="resp_second",
+            output_text="Second reply",
+            output=[second_message],
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        responses = FakeResponses([first, second])
+        client = SimpleNamespace(responses=responses)
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            chat = StatelessConversation(
+                model="test-model",
+                instructions="Be brief.",
+            )
+            chat.send("First turn")
+            result = chat.send("Follow-up")
+
+        first_user = {"role": "user", "content": "First turn"}
+        second_user = {"role": "user", "content": "Follow-up"}
+        self.assertEqual(
+            responses.calls,
+            [
+                {
+                    "model": "test-model",
+                    "input": [first_user],
+                    "store": False,
+                    "instructions": "Be brief.",
+                },
+                {
+                    "model": "test-model",
+                    "input": [
+                        first_user,
+                        reasoning,
+                        first_message,
+                        second_user,
+                    ],
+                    "store": False,
+                    "instructions": "Be brief.",
+                },
+            ],
+        )
+        self.assertEqual(
+            chat.history,
+            [first_user, reasoning, first_message, second_user, second_message],
+        )
+        self.assertEqual(result.text, "Second reply")
+
+    def test_failed_turn_does_not_change_local_history(self):
+        response = SimpleNamespace(
+            id="resp_incomplete",
+            status="incomplete",
+            error=None,
+            incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+        )
+        client = SimpleNamespace(responses=FakeResponses([response]))
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            chat = StatelessConversation(model="test-model")
+
+        with self.assertRaises(LLMResponseError):
+            chat.send("Do not keep this turn")
+
+        self.assertEqual(chat.history, [])
+
+    def test_sdk_errors_are_not_hidden_or_added_to_history(self):
+        error = RuntimeError("API unavailable")
+        client = SimpleNamespace(responses=FakeResponses(error=error))
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            chat = StatelessConversation(model="test-model")
+
+        with self.assertRaises(RuntimeError) as caught:
+            chat.send("Hello")
+
+        self.assertIs(caught.exception, error)
+        self.assertEqual(chat.history, [])
+
+    def test_rejects_invalid_turns_before_creating_a_response(self):
+        responses = FakeResponses()
+        client = SimpleNamespace(responses=responses)
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            chat = StatelessConversation(model="test-model")
+
+        for prompt in ("", "   ", None):
+            with self.subTest(prompt=prompt):
+                with self.assertRaisesRegex(ValueError, "non-empty string"):
+                    chat.send(prompt)
+
+        self.assertEqual(responses.calls, [])

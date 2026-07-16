@@ -10,19 +10,20 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 ```
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
-  conversations.py      Conversation, the reusable multi-turn helper
+  conversations.py      stored and stateless multi-turn helpers
   config.py             API key + model, loaded from the environment
   errors.py             small package-specific exception types
 modules/                runnable examples from the workshop
   01_first_call/        one call: raw SDK + lab_llm
   02_examples_gallery/  response-object field examples
   03_tiny_chat_loop/    multi-turn chat: raw SDK + lab_llm
+  04_stateless_conversation/  local history; API response storage off
 data/                   shared sample data (transcripts.csv, items.csv, …)
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
 
-The raw `example.py` files match the code taught on the site.
-`nicer_example.py` shows the same behavior through `lab_llm`. The core is
+Each module contains a runnable `example.py`. Where both approaches are shown,
+`nicer_example.py` repeats the raw SDK example through `lab_llm`. The core is
 written once. Later examples build on it.
 
 ## Two ways to use this repo
@@ -64,8 +65,9 @@ Your key lives in `.env` (gitignored) and is read from the environment. It never
 lives in code.
 
 The helpers keep the complete OpenAI response. Reply text and token usage stay
-easy to reach. `Conversation` also keeps one durable conversation ID and
-reuses its instructions across turns.
+easy to reach. `Conversation` uses one durable conversation ID.
+`StatelessConversation` keeps the complete history locally and sends it again
+with every turn. Both reuse their instructions across turns.
 
 `call_llm()` fails closed when a response is incomplete or failed. It raises
 `LLMResponseError` with the full response attached. OpenAI SDK exceptions are
