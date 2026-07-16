@@ -23,6 +23,16 @@ class Conversation:
         # The service stores turns attached to this conversation ID.
         conversation = self._client.conversations.create()
         self.conversation_id = conversation.id
+        self._deleted = False
+        self._delete_result = None
+
+    def __enter__(self) -> "Conversation":
+        """Use this conversation inside a cleanup-safe `with` block."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Delete the server-side conversation when the block ends."""
+        self.delete()
 
     def send(
         self,
@@ -70,7 +80,14 @@ class Conversation:
 
     def delete(self):
         """Delete this conversation and its stored items from the service."""
-        return self._client.conversations.delete(self.conversation_id)
+        # Safe to call explicitly inside a `with` block. The block will not
+        # issue a second delete when it closes.
+        if not self._deleted:
+            self._delete_result = self._client.conversations.delete(
+                self.conversation_id
+            )
+            self._deleted = True
+        return self._delete_result
 
 
 class StatelessConversation:

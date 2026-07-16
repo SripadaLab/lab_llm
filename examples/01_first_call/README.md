@@ -17,10 +17,10 @@ These are the two tracks of the workshop side by side:
 ## Run
 
 ```bash
-./scripts/run.sh modules/01_first_call/example.py           # macOS / Linux
-.\scripts\run.ps1 modules\01_first_call\example.py          # Windows
+./scripts/run.sh examples/01_first_call/example.py           # macOS / Linux
+.\scripts\run.ps1 examples\01_first_call\example.py          # Windows
 
-./scripts/run.sh modules/01_first_call/nicer_example.py     # the helper version
+./scripts/run.sh examples/01_first_call/nicer_example.py     # the helper version
 ```
 
 ## What to expect

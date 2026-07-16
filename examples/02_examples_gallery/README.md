@@ -28,11 +28,11 @@ does not complete.
 
 ```bash
 # every example
-./scripts/run.sh modules/02_examples_gallery/examples_gallery.py          # macOS / Linux
-.\scripts\run.ps1 modules\02_examples_gallery\examples_gallery.py         # Windows
+./scripts/run.sh examples/02_examples_gallery/examples_gallery.py          # macOS / Linux
+.\scripts\run.ps1 examples\02_examples_gallery\examples_gallery.py         # Windows
 
 # just one
-./scripts/run.sh modules/02_examples_gallery/examples_gallery.py cutoff
+./scripts/run.sh examples/02_examples_gallery/examples_gallery.py cutoff
 ```
 
 ## What to expect

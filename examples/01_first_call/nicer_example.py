@@ -4,7 +4,7 @@ Compare this with example.py. `call_llm()` wraps the OpenAI call, loads your
 .env for you, uses DEFAULT_MODEL, and keeps the full response. Reply text,
 model, and token usage stay easy to reach.
 
-Run:  ./scripts/run.sh modules/01_first_call/nicer_example.py
+Run:  ./scripts/run.sh examples/01_first_call/nicer_example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from lab_llm import call_llm      # the workshop's one-call helper

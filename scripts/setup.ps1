@@ -58,6 +58,6 @@ if (-not (Test-Path $EnvFile)) {
 Write-Host ""
 Write-Host "Done. Next steps:"
 Write-Host "  1. Open .env and paste your OpenAI API key."
-Write-Host "  2. Run the first example:  .\scripts\run.ps1 modules\01_first_call\example.py"
+Write-Host "  2. Run the first example:  .\scripts\run.ps1 examples\01_first_call\example.py"
 Write-Host ""
 Write-Host "To remove the local install later:  .\scripts\uninstall.ps1"

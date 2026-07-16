@@ -3,7 +3,7 @@
 The same example you ran live on the workshop site (Module 1, page 2),
 now on your own machine.
 
-Run:  ./scripts/run.sh modules/01_first_call/example.py
+Run:  ./scripts/run.sh examples/01_first_call/example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv

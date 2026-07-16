@@ -16,11 +16,11 @@ complete.
 ## Run
 
 ```bash
-./scripts/run.sh modules/03_tiny_chat_loop/example.py          # macOS / Linux
-.\scripts\run.ps1 modules\03_tiny_chat_loop\example.py         # Windows
+./scripts/run.sh examples/03_tiny_chat_loop/example.py          # macOS / Linux
+.\scripts\run.ps1 examples\03_tiny_chat_loop\example.py         # Windows
 
-./scripts/run.sh modules/03_tiny_chat_loop/nicer_example.py    # helper version
-.\scripts\run.ps1 modules\03_tiny_chat_loop\nicer_example.py
+./scripts/run.sh examples/03_tiny_chat_loop/nicer_example.py    # helper version
+.\scripts\run.ps1 examples\03_tiny_chat_loop\nicer_example.py
 ```
 
 Submit an empty prompt to stop.

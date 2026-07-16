@@ -8,8 +8,8 @@ No Conversation object. No `previous_response_id`. Every turn uses
 ## Run
 
 ```bash
-./scripts/run.sh modules/04_stateless_conversation/example.py       # macOS / Linux
-.\scripts\run.ps1 modules\04_stateless_conversation\example.py      # Windows
+./scripts/run.sh examples/04_stateless_conversation/example.py       # macOS / Linux
+.\scripts\run.ps1 examples\04_stateless_conversation\example.py      # Windows
 ```
 
 Submit an empty prompt to stop.

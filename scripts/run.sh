@@ -6,7 +6,7 @@
 # by ./scripts/setup.sh, inside this folder.
 #
 # Usage:
-#   ./scripts/run.sh modules/01_first_call/example.py
+#   ./scripts/run.sh examples/01_first_call/example.py
 #
 set -euo pipefail
 
@@ -24,7 +24,7 @@ fi
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: ./scripts/run.sh <path-to-example>"
-  echo "Example: ./scripts/run.sh modules/01_first_call/example.py"
+  echo "Example: ./scripts/run.sh examples/01_first_call/example.py"
   exit 1
 fi
 

@@ -7,11 +7,13 @@ the rubric to the data. Delete the server-side files when done.
 ## Run
 
 ```bash
-./scripts/run.sh modules/05_files/example.py
-./scripts/run.sh modules/05_files/nicer_example.py
+./scripts/run.sh examples/05_files/example.py
+./scripts/run.sh examples/05_files/nicer_example.py
 ```
 
 `example.py` uses the OpenAI SDK directly. `nicer_example.py` uses `lab_llm`.
+Its `with` block deletes the conversation and temporary files, even after an
+error.
 On Windows, use `.\scripts\run.ps1` and backslashes.
 
 [OpenAI: file inputs](https://developers.openai.com/api/docs/guides/file-inputs)

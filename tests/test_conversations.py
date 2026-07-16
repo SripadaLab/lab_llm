@@ -104,6 +104,40 @@ class ConversationTests(TestCase):
 
         deleted.assert_called_once_with("conv_test")
 
+    def test_context_manager_deletes_after_an_error(self):
+        deleted = Mock(return_value=SimpleNamespace(deleted=True))
+        client = SimpleNamespace(
+            conversations=SimpleNamespace(
+                create=Mock(return_value=SimpleNamespace(id="conv_test")),
+                delete=deleted,
+            ),
+            responses=FakeResponses([]),
+        )
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            with self.assertRaisesRegex(RuntimeError, "model failed"):
+                with Conversation(model="test-model") as chat:
+                    self.assertEqual(chat.conversation_id, "conv_test")
+                    raise RuntimeError("model failed")
+
+        deleted.assert_called_once_with("conv_test")
+
+    def test_delete_is_safe_inside_a_context_manager(self):
+        deleted = Mock(return_value=SimpleNamespace(deleted=True))
+        client = SimpleNamespace(
+            conversations=SimpleNamespace(
+                create=Mock(return_value=SimpleNamespace(id="conv_test")),
+                delete=deleted,
+            ),
+            responses=FakeResponses([]),
+        )
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            with Conversation(model="test-model") as chat:
+                chat.delete()
+
+        deleted.assert_called_once_with("conv_test")
+
     def test_omits_unsupplied_instructions_and_uses_model_override(self):
         response = SimpleNamespace(
             id="resp_test",

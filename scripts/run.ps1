@@ -4,7 +4,7 @@
 # by .\scripts\setup.ps1, inside this folder.
 #
 # Usage:
-#   .\scripts\run.ps1 modules\01_first_call\example.py
+#   .\scripts\run.ps1 examples\01_first_call\example.py
 
 $ErrorActionPreference = "Stop"
 
@@ -22,7 +22,7 @@ if (-not (Test-Path $Python)) {
 
 if ($args.Count -lt 1) {
     Write-Host "Usage: .\scripts\run.ps1 <path-to-example>"
-    Write-Host "Example: .\scripts\run.ps1 modules\01_first_call\example.py"
+    Write-Host "Example: .\scripts\run.ps1 examples\01_first_call\example.py"
     exit 1
 }
 

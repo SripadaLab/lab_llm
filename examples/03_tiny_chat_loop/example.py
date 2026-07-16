@@ -1,6 +1,6 @@
 """Module 1 - the tiny chat loop from the workshop site.
 
-Run:  ./scripts/run.sh modules/03_tiny_chat_loop/example.py
+Run:  ./scripts/run.sh examples/03_tiny_chat_loop/example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv

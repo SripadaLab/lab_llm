@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from lab_llm import delete_file, upload_file
+from lab_llm import delete_file, temporary_file, upload_file
 
 
 class FileTests(TestCase):
@@ -41,3 +41,23 @@ class FileTests(TestCase):
             with self.subTest(file_id=file_id):
                 with self.assertRaisesRegex(ValueError, "file_id"):
                     delete_file(file_id)
+
+    def test_temporary_file_is_deleted_after_an_error(self):
+        uploaded = SimpleNamespace(id="file_test")
+        files = SimpleNamespace(
+            create=Mock(return_value=uploaded),
+            delete=Mock(return_value=SimpleNamespace(deleted=True)),
+        )
+        client = SimpleNamespace(files=files)
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "notes.txt"
+            path.write_text("research notes", encoding="utf-8")
+
+            with patch("lab_llm.files.get_client", return_value=client):
+                with self.assertRaisesRegex(RuntimeError, "model failed"):
+                    with temporary_file(path) as result:
+                        self.assertIs(result, uploaded)
+                        raise RuntimeError("model failed")
+
+        files.delete.assert_called_once_with("file_test")

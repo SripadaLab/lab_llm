@@ -6,8 +6,8 @@ citations return inside the complete response object.
 ## Run
 
 ```bash
-./scripts/run.sh modules/06_web/example.py
-./scripts/run.sh modules/06_web/nicer_example.py
+./scripts/run.sh examples/06_web/example.py
+./scripts/run.sh examples/06_web/nicer_example.py
 ```
 
 `example.py` uses the OpenAI SDK directly. `nicer_example.py` uses `lab_llm`.

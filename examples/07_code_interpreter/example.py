@@ -1,6 +1,6 @@
-"""Module 1 - give one response access to web search.
+"""Module 1 - let the model write and run Python.
 
-Run:  ./scripts/run.sh modules/06_web/example.py
+Run:  ./scripts/run.sh examples/07_code_interpreter/example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv
@@ -11,15 +11,18 @@ from openai import OpenAI                  # the OpenAI Python package
 client = OpenAI()                          # reads OPENAI_API_KEY from the environment
 conversation = client.conversations.create()  # one server-side conversation
 
-response = client.responses.create(        # one web-enabled turn
+response = client.responses.create(        # one code-enabled turn
     model="gpt-5.4-mini",                  # which model answers
     conversation=conversation.id,          # attach the shared conversation
-    tools=[{"type": "web_search"}],        # available for this request
-    input=(                                # the research request
-        "Find the latest CDC guidance on sleep duration. "
-        "Summarize it and cite the sources."
+    tools=[{
+        "type": "code_interpreter",       # allow hosted Python
+        "container": {"type": "auto"},   # manage the sandbox for us
+    }],
+    input=(                                # the calculation request
+        "Use Python to calculate the mean, median, and sample standard "
+        "deviation of: 12, 15, 18, 22, 23."
     ),
 )
 
-print(response.output_text)                # the answer, with citations
+print(response.output_text)                # the computed answer
 client.conversations.delete(conversation.id)  # remove the conversation

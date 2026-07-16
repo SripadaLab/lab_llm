@@ -6,8 +6,8 @@ container, not on your machine.
 ## Run
 
 ```bash
-./scripts/run.sh modules/07_code_interpreter/example.py
-./scripts/run.sh modules/07_code_interpreter/nicer_example.py
+./scripts/run.sh examples/07_code_interpreter/example.py
+./scripts/run.sh examples/07_code_interpreter/nicer_example.py
 ```
 
 `example.py` uses the OpenAI SDK directly. `nicer_example.py` uses `lab_llm`.

@@ -1,4 +1,5 @@
 """Small helpers for files stored through the OpenAI Files API."""
+from contextlib import contextmanager
 from pathlib import Path
 
 from .config import get_client
@@ -20,3 +21,13 @@ def delete_file(file_id: str):
 
     # Uploaded files are server-side objects. Remove them when no longer needed.
     return get_client().files.delete(file_id)
+
+
+@contextmanager
+def temporary_file(path: str | Path):
+    """Upload one file, then delete it when the `with` block ends."""
+    uploaded = upload_file(path)
+    try:
+        yield uploaded
+    finally:
+        delete_file(uploaded.id)

@@ -11,11 +11,12 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
   conversations.py      stored and stateless multi-turn helpers
-  files.py              upload and delete Files API objects
+  jobs.py               sequential jobs with durable, resumable output
+  files.py              persistent or temporary Files API uploads
   tools.py              readable hosted-tool configurations
   config.py             API key + model, loaded from the environment
   errors.py             small package-specific exception types
-modules/                runnable examples from the workshop
+examples/                runnable examples from the workshop
   01_first_call/        one call: raw SDK + lab_llm
   02_examples_gallery/  response-object field examples
   03_tiny_chat_loop/    multi-turn chat: raw SDK + lab_llm
@@ -23,6 +24,7 @@ modules/                runnable examples from the workshop
   05_files/              Files API upload and response input
   06_web/                hosted web-search example
   07_code_interpreter/   hosted Python example
+  08_sequential_ratings/ transcript x item ratings, one call at a time
 data/                   shared sample data (transcripts.csv, items.csv, …)
 scripts/                setup / run / uninstall (macOS + Windows)
 ```
@@ -55,7 +57,7 @@ the folder removes the project files.
 ```bash
 ./scripts/setup.sh          # installs a private Python + packages, all in this folder
 # open .env and paste your OpenAI key
-./scripts/run.sh modules/01_first_call/example.py
+./scripts/run.sh examples/01_first_call/example.py
 ```
 
 **Windows (PowerShell)**
@@ -63,7 +65,7 @@ the folder removes the project files.
 ```powershell
 .\scripts\setup.ps1         # installs a private Python + packages, all in this folder
 # open .env and paste your OpenAI key
-.\scripts\run.ps1 modules\01_first_call\example.py
+.\scripts\run.ps1 examples\01_first_call\example.py
 ```
 
 Your key lives in `.env` (gitignored) and is read from the environment. It never
@@ -79,6 +81,10 @@ with every turn. Both reuse their instructions across turns.
 left unchanged, so callers can still catch specific authentication, rate-limit,
 connection, and API errors.
 
+`run_jobs()` runs independent calls sequentially. It saves every attempt to
+JSONL before starting the next call. Reusing the output path skips completed
+jobs and retries failed ones.
+
 Optional `.env` settings:
 
 ```dotenv
@@ -91,8 +97,8 @@ Leave either setting unset to use the OpenAI SDK default.
 ### Run a specific module
 
 ```bash
-./scripts/run.sh modules/03_tiny_chat_loop/example.py      # macOS / Linux
-.\scripts\run.ps1 modules\03_tiny_chat_loop\example.py     # Windows
+./scripts/run.sh examples/03_tiny_chat_loop/example.py      # macOS / Linux
+.\scripts\run.ps1 examples\03_tiny_chat_loop\example.py     # Windows
 ```
 
 ### Remove the local install
@@ -114,7 +120,7 @@ python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
 cp .env.example .env           # then add your OpenAI key
-python modules/01_first_call/example.py
+python examples/01_first_call/example.py
 ```
 
 ## Tests

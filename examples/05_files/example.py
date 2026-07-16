@@ -3,7 +3,7 @@
 Upload a CSV of transcripts and a text rubric, reference both in one request,
 and the model applies the rubric to the data.
 
-Run:  ./scripts/run.sh modules/05_files/example.py
+Run:  ./scripts/run.sh examples/05_files/example.py
 Needs OPENAI_API_KEY in .env or your shell (see the root README).
 """
 from dotenv import load_dotenv
@@ -23,7 +23,7 @@ with open("data/instructions.txt", "rb") as f:  # the rating rubric
 response = client.responses.create(        # reference both files by ID
     model="gpt-5.4-mini",                  # which model answers
     conversation=conversation.id,          # attach the shared conversation
-    input=[{                                # one user message: files + task
+    input=[{                               # one user message: files + task
         "role": "user",
         "content": [
             {"type": "input_file", "file_id": transcripts.id},  # the CSV
