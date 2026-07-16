@@ -65,6 +65,10 @@ class Conversation:
         response = self._client.responses.create(**kwargs)
         return LLMResult.from_response(response)
 
+    def delete(self):
+        """Delete this conversation and its stored items from the service."""
+        return self._client.conversations.delete(self.conversation_id)
+
 
 class StatelessConversation:
     """A conversation whose complete history stays with this process."""

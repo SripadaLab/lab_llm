@@ -13,3 +13,4 @@ result = chat.send(                         # one code-enabled turn
 )
 
 print(result.text)                          # the computed answer
+chat.delete()                               # remove the conversation

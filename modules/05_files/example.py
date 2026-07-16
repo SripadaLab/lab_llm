@@ -34,3 +34,4 @@ response = client.responses.create(        # reference it by file ID
 
 print(response.output_text)                # the model output
 client.files.delete(uploaded_file.id)      # remove the server-side file
+client.conversations.delete(conversation.id)  # remove the conversation

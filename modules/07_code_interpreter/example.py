@@ -25,3 +25,4 @@ response = client.responses.create(        # one code-enabled turn
 )
 
 print(response.output_text)                # the computed answer
+client.conversations.delete(conversation.id)  # remove the conversation

@@ -87,6 +87,23 @@ class ConversationTests(TestCase):
             ],
         )
 
+    def test_delete_removes_the_conversation(self):
+        deleted = Mock(return_value=SimpleNamespace(deleted=True))
+        conversations = SimpleNamespace(
+            create=Mock(return_value=SimpleNamespace(id="conv_test")),
+            delete=deleted,
+        )
+        client = SimpleNamespace(conversations=conversations, responses=FakeResponses([]))
+
+        with (
+            patch("lab_llm.conversations.get_client", return_value=client),
+            patch("lab_llm.conversations.get_model", return_value="test-model"),
+        ):
+            chat = Conversation()
+            chat.delete()
+
+        deleted.assert_called_once_with("conv_test")
+
     def test_omits_unsupplied_instructions_and_uses_model_override(self):
         response = SimpleNamespace(
             id="resp_test",

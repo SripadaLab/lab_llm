@@ -26,3 +26,5 @@ while True:                                # keep chatting
     )
 
     print("Model:", response.output_text)  # the reply, as text
+
+client.conversations.delete(conversation.id)  # remove the server-side conversation

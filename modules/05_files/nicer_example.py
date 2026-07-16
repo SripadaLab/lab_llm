@@ -15,3 +15,4 @@ result = chat.send(                         # file and prompt in one turn
 
 print(result.text)                          # the model output
 delete_file(uploaded_file.id)               # remove the server-side file
+chat.delete()                               # remove the conversation

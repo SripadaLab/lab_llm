@@ -13,3 +13,4 @@ result = chat.send(                         # one web-enabled turn
 )
 
 print(result.text)                          # the answer, with citations
+chat.delete()                               # remove the conversation

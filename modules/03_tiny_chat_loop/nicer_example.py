@@ -16,3 +16,5 @@ while True:                            # keep chatting
 
     result = chat.send(prompt)          # send it in the same conversation
     print("Model:", result.text)        # the reply, as text
+
+chat.delete()                           # remove the server-side conversation

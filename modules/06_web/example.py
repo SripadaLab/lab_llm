@@ -22,3 +22,4 @@ response = client.responses.create(        # one web-enabled turn
 )
 
 print(response.output_text)                # the answer, with citations
+client.conversations.delete(conversation.id)  # remove the conversation
