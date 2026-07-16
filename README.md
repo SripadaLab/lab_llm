@@ -11,6 +11,7 @@ one small reusable package (`lab_llm`) plus a runnable example per module.
 lab_llm/                the reusable package (install once, use everywhere)
   calls.py              call_llm(), the reusable one-call helper
   config.py             API key + model, loaded from the environment
+  errors.py             small package-specific exception types
 modules/                one folder per workshop module
   01_first_call/        example.py + README (+ expected output)
   02_ratings_at_scale/
@@ -53,6 +54,20 @@ lives in code.
 
 The helper keeps the complete OpenAI response. Reply text and token usage stay
 easy to reach.
+
+`call_llm()` fails closed when a response is incomplete or failed. It raises
+`LLMResponseError` with the full response attached. OpenAI SDK exceptions are
+left unchanged, so callers can still catch specific authentication, rate-limit,
+connection, and API errors.
+
+Optional `.env` settings:
+
+```dotenv
+OPENAI_TIMEOUT=60       # seconds
+OPENAI_MAX_RETRIES=2    # automatic retries after the first attempt
+```
+
+Leave either setting unset to use the OpenAI SDK default.
 
 ### Run a specific module
 

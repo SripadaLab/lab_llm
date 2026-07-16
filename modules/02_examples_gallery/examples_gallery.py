@@ -17,7 +17,7 @@ import sys
 
 from openai import BadRequestError
 
-from lab_llm import call_llm
+from lab_llm import LLMResponseError, call_llm
 from lab_llm.config import get_client, get_model
 
 
@@ -64,10 +64,13 @@ def tokens():
 
 def cutoff():
     """4. Stopped early - the response explains why."""
-    r = call_llm("Write a detailed history of the bicycle.", max_output_tokens=20)
-    print("text   :", r.text, "...")
-    print("status :", r.response.status)
-    print("reason :", r.response.incomplete_details)
+    try:
+        call_llm("Write a detailed history of the bicycle.", max_output_tokens=20)
+    except LLMResponseError as error:
+        response = error.response
+        print("text   :", response.output_text, "...")
+        print("status :", response.status)
+        print("reason :", error.reason)
 
 
 def refusal():

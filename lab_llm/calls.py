@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .config import get_client, get_model
+from .errors import LLMResponseError
 
 
 @dataclass
@@ -28,6 +29,8 @@ class LLMResult:
     response: Any = field(repr=False)
     model: Optional[str] = None
     usage: Optional[Usage] = None
+    response_id: Optional[str] = None
+    status: Optional[str] = None
 
 
 def _read_usage(response) -> Optional[Usage]:
@@ -59,7 +62,22 @@ def call_llm(
     Example:
         result = call_llm("Why is the sky blue?", instructions="Be concise.")
         print(result.text)
+
+    Raises:
+        ValueError: The prompt is empty or max_output_tokens is invalid.
+        LLMResponseError: The API returned a non-completed response.
+
+    OpenAI SDK exceptions are not wrapped.
     """
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise ValueError("prompt must be a non-empty string")
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool)
+        or not isinstance(max_output_tokens, int)
+        or max_output_tokens <= 0
+    ):
+        raise ValueError("max_output_tokens must be a positive integer")
+
     # Build the request, adding optional fields only when set.
     kwargs: dict = {"model": model or get_model(), "input": prompt}
     if instructions is not None:
@@ -69,9 +87,14 @@ def call_llm(
 
     response = get_client().responses.create(**kwargs)
 
+    if getattr(response, "status", None) != "completed":
+        raise LLMResponseError(response)
+
     return LLMResult(
         text=response.output_text,
         response=response,
         model=getattr(response, "model", None),
         usage=_read_usage(response),
+        response_id=getattr(response, "id", None),
+        status=getattr(response, "status", None),
     )
