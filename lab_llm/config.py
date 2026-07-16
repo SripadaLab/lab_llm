@@ -47,4 +47,5 @@ def get_client():
     # Imported here so the package loads even before `openai` is installed.
     from openai import OpenAI
 
-    return OpenAI()
+    # base_url=None uses OpenAI's default endpoint; set OPENAI_BASE_URL to override.
+    return OpenAI(base_url=os.environ.get("OPENAI_BASE_URL") or None)
