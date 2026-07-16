@@ -3,8 +3,8 @@
 # setup.sh — one-command setup for macOS / Linux.
 #
 # Installs a private Python and all dependencies INSIDE this folder.
-# Nothing is installed on your system. Deleting this folder (or running
-# ./uninstall.sh) removes every trace.
+# Nothing is installed system-wide. Deleting this folder removes all project
+# files; ./uninstall.sh removes the local install and keeps source and outputs.
 #
 # Usage:  ./scripts/setup.sh
 #
@@ -26,7 +26,7 @@ export UV_CACHE_DIR="$PROJECT/.cache"
 PYTHON_VERSION="3.12"
 
 echo "==> Setting up in: $PROJECT"
-echo "    Everything installs inside this folder. Your system stays untouched."
+echo "    Everything installs inside this folder. Nothing is installed system-wide."
 echo
 
 # 1. Get uv (a small, self-contained tool) into ./.bin if it isn't there yet.
@@ -59,4 +59,4 @@ echo "Done. Next steps:"
 echo "  1. Open .env and paste your OpenAI API key."
 echo "  2. Run the first example:  ./scripts/run.sh modules/01_first_call/example.py"
 echo
-echo "To remove everything later:  ./scripts/uninstall.sh  (or just delete this folder)."
+echo "To remove the local install later:  ./scripts/uninstall.sh"

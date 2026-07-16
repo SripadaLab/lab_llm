@@ -1,8 +1,8 @@
-# uninstall.ps1 - remove everything setup.ps1 created.
+# uninstall.ps1 - remove the local install created by setup.ps1.
 #
 # Deletes the private Python, the environment, caches, the downloaded tool,
-# and your .env. Only the source code is left behind.
-# (Deleting this whole folder does the same thing.)
+# and your .env. Source code and run outputs stay.
+# (Deleting the whole folder removes those too.)
 #
 # Usage:  .\scripts\uninstall.ps1
 
@@ -13,7 +13,7 @@ $Project = Split-Path -Parent $ScriptDir
 Set-Location $Project
 
 Write-Host "This removes the private Python, the .venv environment, caches, and .env."
-Write-Host "Your source code is kept. Folder: $Project"
+Write-Host "Source code and run outputs stay. Folder: $Project"
 $reply = Read-Host "Continue? [y/N]"
 if ($reply -notmatch '^(y|Y|yes|YES)$') {
     Write-Host "Cancelled."
@@ -27,11 +27,11 @@ foreach ($t in $targets) {
     if (Test-Path $path) { Remove-Item -Recurse -Force $path }
 }
 
-# Build/run leftovers.
+# Build and cache leftovers.
 Get-ChildItem -Path $Project -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem -Path $Project -Directory -Filter "*.egg-info" -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Host "Done. Only the source code remains."
+Write-Host "Done. Source code and run outputs remain."
 Write-Host "To set up again:  .\scripts\setup.ps1"

@@ -12,6 +12,7 @@ from lab_llm import call_llm      # the workshop's one-call helper
 result = call_llm(
     "Why is the sky blue?",       # your request
     instructions="Be concise.",   # how the model should behave
+    # model="gpt-5.4-mini",       # optional; defaults to DEFAULT_MODEL from .env
 )
 
 print(result.text)                # the reply, as text

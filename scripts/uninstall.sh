@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# uninstall.sh — remove everything setup.sh created.
+# uninstall.sh — remove the local install created by setup.sh.
 #
 # Deletes the private Python, the environment, caches, the downloaded tool,
-# and your .env. Only the source code is left behind.
-# (Deleting this whole folder does the same thing.)
+# and your .env. Source code and run outputs stay.
+# (Deleting the whole folder removes those too.)
 #
 # Usage:  ./scripts/uninstall.sh
 #
@@ -15,7 +15,7 @@ PROJECT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT"
 
 echo "This removes the private Python, the .venv environment, caches, and .env."
-echo "Your source code is kept. Folder: $PROJECT"
+echo "Source code and run outputs stay. Folder: $PROJECT"
 printf "Continue? [y/N] "
 read -r reply
 case "$reply" in
@@ -30,9 +30,9 @@ rm -rf "$PROJECT/.bin" \
        "$PROJECT/.venv" \
        "$PROJECT/.env"
 
-# Build/run leftovers.
+# Build and cache leftovers.
 rm -rf "$PROJECT"/*.egg-info "$PROJECT/uv.lock"
 find "$PROJECT" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
 
-echo "Done. Only the source code remains."
+echo "Done. Source code and run outputs remain."
 echo "To set up again:  ./scripts/setup.sh"

@@ -29,8 +29,8 @@ the core is written once, and every module builds on the last.
 ## Setup
 
 You do **not** need Python installed. Setup downloads a private Python and all
-dependencies **inside this folder**. Nothing touches your system, and deleting
-the folder removes every trace.
+dependencies **inside this folder**. Nothing is installed system-wide. Deleting
+the folder removes the project files.
 
 **macOS / Linux**
 
@@ -58,15 +58,15 @@ lives in code.
 .\scripts\run.ps1 modules\02_ratings_at_scale\example.py    # Windows
 ```
 
-### Remove everything
+### Remove the local install
 
 ```bash
 ./scripts/uninstall.sh      # macOS / Linux
 .\scripts\uninstall.ps1     # Windows
 ```
 
-This deletes the private Python, the environment, caches, and `.env`, leaving
-only the source code. (Deleting the whole folder does the same thing.)
+This deletes the private Python, the environment, caches, and `.env`. Source
+code and run outputs stay. Deleting the whole folder removes those too.
 
 ### Prefer your own Python?
 

@@ -1,8 +1,8 @@
 # setup.ps1 - one-command setup for Windows (PowerShell).
 #
 # Installs a private Python and all dependencies INSIDE this folder.
-# Nothing is installed on your system. Deleting this folder (or running
-# .\uninstall.ps1) removes every trace.
+# Nothing is installed system-wide. Deleting this folder removes all project
+# files; .\uninstall.ps1 removes the local install and keeps source and outputs.
 #
 # Usage:  .\scripts\setup.ps1
 # If Windows blocks the script, first run:
@@ -26,7 +26,7 @@ $env:UV_CACHE_DIR = Join-Path $Project ".cache"
 $PythonVersion = "3.12"
 
 Write-Host "==> Setting up in: $Project"
-Write-Host "    Everything installs inside this folder. Your system stays untouched."
+Write-Host "    Everything installs inside this folder. Nothing is installed system-wide."
 Write-Host ""
 
 # 1. Get uv (a small, self-contained tool) into .\.bin if it isn't there yet.
@@ -60,4 +60,4 @@ Write-Host "Done. Next steps:"
 Write-Host "  1. Open .env and paste your OpenAI API key."
 Write-Host "  2. Run the first example:  .\scripts\run.ps1 modules\01_first_call\example.py"
 Write-Host ""
-Write-Host "To remove everything later:  .\scripts\uninstall.ps1  (or just delete this folder)."
+Write-Host "To remove the local install later:  .\scripts\uninstall.ps1"
