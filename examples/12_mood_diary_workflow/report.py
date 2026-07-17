@@ -101,7 +101,6 @@ def render_report(themes, scores, evidence, path: Path) -> None:
 <body>
   <header>
     <h1>Mood diary life themes</h1>
-    <p>Inspectable stages. Deterministic ranking. Quote-grounded evidence kept separate from scores.</p>
   </header>
   <main>
     <section class="summary">

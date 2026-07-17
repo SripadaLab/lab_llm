@@ -35,6 +35,8 @@ examples/                runnable examples from the workshop
   10_structured_outputs/ simple JSON Schema and typed output
   11_complex_structured_outputs/ nested evidence and justifications
   12_mood_diary_workflow/ extract, synthesize, score, audit, report
+  13_tool_calling/       raw Responses API function-tool loop
+  14_research_agent/     approved agent + study-specific pilot helpers
 data/                   shared sample transcripts, item banks, and instructions
   mood_diaries/          eight synthetic, dated diary entries
   model_pricing.csv      saved OpenAI token-price snapshot for long runs
@@ -136,6 +138,15 @@ Leave either setting unset to use the OpenAI SDK default.
 ./scripts/run.sh examples/03_tiny_chat_loop/example.py      # macOS / Linux
 .\scripts\run.ps1 examples\03_tiny_chat_loop\example.py     # Windows
 ```
+
+The final agent example uses the optional OpenAI Agents SDK. Install it only
+when you reach that module:
+
+```bash
+./.bin/uv pip install -e ".[agents]"
+```
+
+The default `lab_llm` install stays small.
 
 ### Remove the local install
 
