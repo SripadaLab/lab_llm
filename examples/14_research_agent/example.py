@@ -1,41 +1,93 @@
-"""A bounded research agent: inspect, estimate, approve, run, check, report."""
-from agents import Agent, Runner
+"""Chat with an agent that investigates a small synthetic study."""
+from agents import (
+    Agent,
+    CodeInterpreterTool,
+    RunHooks,
+    Runner,
+    SQLiteSession,
+)
 
 from lab_llm.config import get_model
-from pilot_tools import TOOLS
+from study_tools import TOOLS
 
 
-director = Agent(
-    name="Research Pilot Director",
+class TerminalHooks(RunHooks):
+    """Show actions without exposing private model reasoning."""
+
+    async def on_llm_start(
+        self, context, agent, system_prompt, input_items
+    ) -> None:
+        print("  → model request")
+
+    async def on_tool_start(self, context, agent, tool) -> None:
+        print(f"  → {tool.name}")
+
+    async def on_llm_end(self, context, agent, response) -> None:
+        # Hosted tools run inside the model response, not in local Python.
+        if any(
+            getattr(item, "type", "") == "code_interpreter_call"
+            for item in response.output
+        ):
+            print("  → code_interpreter")
+
+
+investigator = Agent(
+    name="Study Investigator",
     instructions=(
-        "Help the researcher evaluate the fixed demo study. First inspect it. "
-        "Then estimate a three-transcript pilot. Explain any input issues. "
-        "If the usable inputs support a pilot, run it. After it runs, check "
-        "the results and save the HTML review. Never invent tool results."
+        "Answer scientific questions about the fixed synthetic study. "
+        "Investigate before making claims: list files, read relevant evidence, "
+        "and compare sources. Use Code Interpreter for calculations, tables, "
+        "counts, or cross-file checks. The Python sandbox cannot see local "
+        "files directly, so pass it data found with the study tools. Cite the "
+        "study filenames that support important claims. Distinguish evidence "
+        "from inference. Say when the available files cannot answer a question."
     ),
-    tools=TOOLS,
+    tools=[
+        *TOOLS,
+        CodeInterpreterTool({
+            "type": "code_interpreter",
+            "container": {"type": "auto"},
+        }),
+    ],
     model=get_model(),
 )
 
 
 def main() -> None:
-    """Run the agent and resolve each approval in the terminal."""
-    result = Runner.run_sync(
-        director,
-        "Can we run an anxiety-rating pilot on this study folder?",
-    )
+    """Run a multi-turn terminal chat with local conversation memory."""
+    session = SQLiteSession("study-investigator")
+    hooks = TerminalHooks()
 
-    # Approval is an enforced pause, not a polite sentence in the prompt.
-    while result.interruptions:
-        print(f"\nApproval required for {len(result.interruptions)} tool call(s).")
-        if input("Approve? [y/N] ").strip().lower() != "y":
-            raise SystemExit("Stopped. No approval given.")
-        state = result.to_state()
-        for interruption in result.interruptions:
-            state.approve(interruption)
-        result = Runner.run_sync(director, state)
+    print("Study Investigator")
+    print("Ask a scientific question about the demo study. Type 'quit' to exit.")
+    print("Try: Is this study ready for analysis?\n")
 
-    print("\n" + str(result.final_output))
+    while True:
+        try:
+            question = input("You › ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye.")
+            break
+
+        if question.lower() in {"quit", "exit"}:
+            print("Goodbye.")
+            break
+        if not question:
+            continue
+
+        try:
+            result = Runner.run_sync(
+                investigator,
+                question,
+                session=session,
+                hooks=hooks,
+                max_turns=12,
+            )
+        except Exception as exc:
+            print(f"\nCould not complete that turn: {exc}\n")
+            continue
+
+        print(f"\nAgent › {result.final_output}\n")
 
 
 if __name__ == "__main__":

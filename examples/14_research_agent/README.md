@@ -1,21 +1,26 @@
-# Research Pilot Director
+# Study Investigator
 
-One goal. Five bounded tools. Real approval gates.
+An open-ended, multi-turn research agent.
 
-The agent inspects the demo study, estimates a three-transcript pilot, and
-pauses before making the pilot requests. After approval, it validates the
-saved results and pauses again before writing `review.html`.
-
-`example.py` stays small. `pilot_tools.py` contains the bounded tools.
-`study_helpers.py` contains this demo's study inspection and cost estimate.
+The agent explores one fixed synthetic study. It chooses which files to read,
+uses hosted Python for calculations, and cites the evidence behind its answers.
+Different questions can produce different investigation paths.
 
 ```bash
-./.bin/uv pip install -e ".[agents]"
 ./scripts/run.sh examples/14_research_agent/example.py
 ```
 
-The agent run itself uses model calls. Approval gates protect the additional
-pilot spend and file-writing tools. The complete run is visible in the OpenAI
-Traces dashboard.
+Try:
 
-The Agents SDK is an optional dependency. The rest of `lab_llm` stays small.
+- `Is this study ready for analysis?`
+- `Which participants can be analyzed safely?`
+- `Do the protocol and item bank agree?`
+- `Use Python to check the ratings and summarize anything impossible.`
+- `What should the research team fix first?`
+
+`study_files.py` enforces read-only access to the fixed `study/` folder.
+`study_tools.py` exposes that access to the agent. Code Interpreter runs in an
+OpenAI-hosted sandbox. It does not receive local shell access.
+
+Conversation state lives in an in-process SQLite session. Closing the script
+clears the chat.

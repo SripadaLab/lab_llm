@@ -1,0 +1,3 @@
+item_id,prompt,min_value,max_value
+anxiety_frequency,Rate anxiety frequency.,0,4
+mood_interference,Rate interference with daily life.,1,5

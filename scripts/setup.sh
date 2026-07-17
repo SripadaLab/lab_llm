@@ -46,7 +46,7 @@ echo "==> Installing a private Python $PYTHON_VERSION (this may take a minute)..
 # 3. Create the environment and install the workshop package + dependencies.
 echo "==> Creating the environment (.venv) and installing packages..."
 "$UV" venv "$PROJECT/.venv" --python "$PYTHON_VERSION"
-VIRTUAL_ENV="$PROJECT/.venv" "$UV" pip install -e "$PROJECT"
+VIRTUAL_ENV="$PROJECT/.venv" "$UV" pip install -e "${PROJECT}[agents]"
 
 # 4. Create a .env for your API key if you don't have one yet.
 if [ ! -f "$PROJECT/.env" ]; then
