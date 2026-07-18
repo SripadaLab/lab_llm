@@ -4,13 +4,14 @@ from __future__ import annotations
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 from .calls import call_llm
 from .config import get_model
 from .progress import RunProgress, TokenPricing, add_cost_estimate
+from .privacy import DeidentificationSummary, Deidentifier
 from .records import (
     append_record,
     attempt_counts,
@@ -75,6 +76,9 @@ def run_jobs(
     pricing: TokenPricing | None = None,
     workers: int = 1,
     output_contract: OutputContract | None = None,
+    deidentifier: Deidentifier | None = None,
+    deidentification_scope_key: str | None = None,
+    deidentification_by_job: Mapping[str, DeidentificationSummary] | None = None,
 ) -> list[dict[str, Any]]:
     """Run jobs and save each result immediately.
 
@@ -85,7 +89,10 @@ def run_jobs(
     API, response, and output-validation errors are recorded. Running again
     retries failed jobs, but never completed ones. ``workers=1`` is sequential.
     Larger values use separate processes; only the parent process validates
-    and writes results.
+    and writes results. ``deidentification_scope_key`` can name a string-valued
+    metadata field so related jobs share placeholders without linking separate
+    groups. ``deidentification_by_job`` attaches summaries for text filtered
+    before job construction.
     """
     jobs = list(jobs)
     if not jobs:
@@ -97,10 +104,86 @@ def run_jobs(
     if len(job_ids) != len(set(job_ids)):
         raise ValueError("job_id values must be unique")
 
+    privacy_scopes: dict[str, str] = {}
+    if deidentification_scope_key is not None:
+        if deidentifier is None:
+            raise ValueError(
+                "deidentification_scope_key requires a deidentifier"
+            )
+        if (
+            not isinstance(deidentification_scope_key, str)
+            or not deidentification_scope_key.strip()
+        ):
+            raise ValueError(
+                "deidentification_scope_key must be a non-empty string"
+            )
+        for job in jobs:
+            scope = job.metadata.get(deidentification_scope_key)
+            if not isinstance(scope, str) or not scope.strip():
+                raise ValueError(
+                    f"job {job.job_id!r} metadata must contain a non-empty "
+                    f"string {deidentification_scope_key!r}"
+                )
+            privacy_scopes[job.job_id] = scope
+
+    privacy_by_job: dict[str, DeidentificationSummary] = {}
+    if deidentification_by_job is not None:
+        unknown_jobs = set(deidentification_by_job) - set(job_ids)
+        if unknown_jobs:
+            raise ValueError(
+                "deidentification_by_job contains unknown job IDs: "
+                + ", ".join(sorted(unknown_jobs))
+            )
+        for job_id, summary in deidentification_by_job.items():
+            if not isinstance(summary, DeidentificationSummary):
+                raise TypeError(
+                    "deidentification_by_job values must be "
+                    "DeidentificationSummary objects"
+                )
+            privacy_by_job[job_id] = summary
+    if deidentifier is not None:
+        filtered_jobs = []
+        for job in jobs:
+            scope = privacy_scopes.get(job.job_id)
+            if deidentification_scope_key is None:
+                prompt_result = deidentifier.deidentify(job.prompt)
+            else:
+                prompt_result = deidentifier.deidentify(
+                    job.prompt,
+                    scope=scope,
+                )
+            summaries = [prompt_result.summary]
+            instructions = job.instructions
+            if instructions is not None:
+                if deidentification_scope_key is None:
+                    instruction_result = deidentifier.deidentify(instructions)
+                else:
+                    instruction_result = deidentifier.deidentify(
+                        instructions,
+                        scope=scope,
+                    )
+                instructions = instruction_result.text
+                summaries.append(instruction_result.summary)
+            filtered_job = replace(
+                job,
+                prompt=prompt_result.text,
+                instructions=instructions,
+            )
+            filtered_jobs.append(filtered_job)
+            existing_summary = privacy_by_job.get(job.job_id)
+            if existing_summary is not None:
+                summaries.insert(0, existing_summary)
+            privacy_by_job[job.job_id] = DeidentificationSummary.combine(summaries)
+        jobs = filtered_jobs
+
     # Resolve the default model once. The saved request then records exactly
     # which model was used, even if .env changes later.
     default_model = get_model() if any(job.model is None for job in jobs) else None
     prepared = [prepare_job(job, default_model, output_contract) for job in jobs]
+    for job, request in prepared:
+        summary = privacy_by_job.get(job.job_id)
+        if summary is not None:
+            request["deidentification"] = summary.to_dict()
 
     # Explicit pricing prevents a silent estimate for the wrong model.
     if pricing is not None:

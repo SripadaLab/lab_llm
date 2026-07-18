@@ -57,7 +57,16 @@ def write_job_plan(jobs, path: Path) -> None:
     _write_unchanged(path, "\n".join(lines) + "\n", "jobs")
 
 
-def write_manifest(jobs, model, sources, pricing, contract, path: Path) -> None:
+def write_manifest(
+    jobs,
+    model,
+    sources,
+    pricing,
+    contract,
+    path: Path,
+    *,
+    settings=None,
+) -> None:
     """Save the inputs needed to understand or reproduce the run."""
     details = {
         "run_name": path.parent.name,
@@ -71,6 +80,8 @@ def write_manifest(jobs, model, sources, pricing, contract, path: Path) -> None:
             for name, source in sources.items()
         },
     }
+    if settings is not None:
+        details["settings"] = settings
 
     if path.exists():
         existing = json.loads(path.read_text(encoding="utf-8"))

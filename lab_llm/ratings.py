@@ -5,6 +5,8 @@ import csv
 import json
 import math
 import time
+from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -16,6 +18,7 @@ from .config import get_model
 from .inputs import ItemBank, PromptTemplate, TranscriptBank
 from .jobs import LLMJob, run_jobs
 from .progress import load_token_pricing
+from .privacy import Deidentifier
 from .runs import parse_run_args, write_job_plan, write_manifest
 from .structured import OutputContract
 
@@ -30,6 +33,7 @@ def run_rating_batch(
     pricing_path: str | Path,
     runs_path: str | Path,
     max_output_tokens: int,
+    deidentifier: Deidentifier | None = None,
     argv: Sequence[str] | None = None,
 ) -> int:
     """Run one transcript-by-item rating study from the command line.
@@ -59,9 +63,7 @@ def run_rating_batch(
         prompt_path,
         fields=(
             "item",
-            "min_value",
-            "max_value",
-            "scoring_values",
+            "response_requirements",
             "transcript",
         ),
     )
@@ -80,6 +82,14 @@ def run_rating_batch(
     )
 
     print(f"Prepared {len(jobs)} ratings.")
+    print(
+        "Local de-identification: "
+        + (
+            "ON (per transcript, before API calls)"
+            if deidentifier is not None
+            else "OFF"
+        )
+    )
     if args.dry_run:
         _print_preflight(jobs, transcripts, items, model, pricing, args.workers)
         return 0
@@ -99,22 +109,77 @@ def run_rating_batch(
         pricing,
         contract,
         run_dir / "manifest.json",
+        settings={
+            "local_deidentification": _deidentification_settings(deidentifier),
+        },
     )
 
     # Completed jobs survive interruptions. Failed jobs run again next time.
     started_at = time.perf_counter()
+    run_options = {
+        "pricing": pricing,
+        "workers": args.workers,
+        "output_contract": contract,
+    }
+    jobs_to_run = jobs
+    if deidentifier is not None:
+        filtered_transcripts, privacy_by_transcript = _deidentify_transcripts(
+            transcripts,
+            deidentifier,
+        )
+        jobs_to_run = _build_jobs(
+            filtered_transcripts,
+            items,
+            template,
+            instructions,
+            contract,
+            max_output_tokens,
+            model,
+        )
+        run_options["deidentification_by_job"] = {
+            job.job_id: privacy_by_transcript[job.metadata["transcript_id"]]
+            for job in jobs_to_run
+        }
     records = run_jobs(
-        jobs,
+        jobs_to_run,
         run_dir / "raw_results.jsonl",
-        pricing=pricing,
-        workers=args.workers,
-        output_contract=contract,
+        **run_options,
     )
     runtime = time.perf_counter() - started_at
 
     rows = _write_results(records, run_dir / "results.csv")
     _write_summary(records, rows, runtime, args.workers, run_dir / "summary.json")
     return _report(records, rows, run_dir)
+
+
+def _deidentification_settings(deidentifier):
+    """Describe the privacy mode without retaining detected identifiers."""
+    if deidentifier is None:
+        return {"enabled": False}
+    return {
+        "enabled": True,
+        "device": deidentifier.device,
+        "labels": sorted(deidentifier.labels),
+        "checkpoint": deidentifier.checkpoint,
+        "calibration_path": deidentifier.calibration_path,
+        "scope": "transcript",
+    }
+
+
+def _deidentify_transcripts(transcripts, deidentifier):
+    """Filter only transcript data, with one placeholder map per transcript."""
+    filtered = []
+    summaries = {}
+    for transcript in transcripts:
+        result = deidentifier.deidentify(
+            transcript.text,
+            scope=transcript.transcript_id,
+        )
+        filtered.append(replace(transcript, text=result.text))
+        summaries[transcript.transcript_id] = result.summary
+    return TranscriptBank(tuple(filtered)), summaries
+
+
 def _build_jobs(
     transcripts,
     items,
@@ -136,14 +201,12 @@ def _build_jobs(
                 prompt=template.render(
                     transcript=transcript.text,
                     item=item.prompt,
-                    min_value=f"{item.min_value:g}",
-                    max_value=f"{item.max_value:g}",
-                    scoring_values=item.scoring_guide,
+                    response_requirements=item.response_requirements,
                 ),
                 instructions=instructions,
                 model=model,
                 max_output_tokens=max_output_tokens,
-                output_format=contract.output_format,
+                output_format=_output_format_for_item(contract, item),
                 metadata={
                     "transcript_id": transcript.transcript_id,
                     "transcript_file": transcript.filename,
@@ -151,12 +214,43 @@ def _build_jobs(
                     "min_value": item.min_value,
                     "max_value": item.max_value,
                     "scoring_values": item.scoring_values,
-                    "allowed_values": [
-                        value for value, _ in item.value_labels
-                    ],
+                    "allowed_values": list(item.allowed_values),
                 },
             ))
     return jobs
+
+
+def _output_format_for_item(contract, item):
+    """Narrow the shared rating contract to this item's exact response set."""
+    output_format = deepcopy(contract.output_format)
+    properties = output_format.get("schema", {}).get("properties", {})
+    base_rating_schema = properties.get("rating")
+    if base_rating_schema is None:
+        raise ValueError("output contract schema must define a rating property")
+
+    if item.acceptable_responses:
+        value_schema = {
+            "type": "string",
+            "enum": list(item.acceptable_responses),
+        }
+    elif item.value_labels:
+        values = [value for value, _ in item.value_labels]
+        integers_only = all(value.is_integer() for value in values)
+        value_schema = {
+            "type": "integer" if integers_only else "number",
+            "enum": [
+                int(value) if integers_only else value
+                for value in values
+            ],
+        }
+    else:
+        value_schema = {"type": "number"}
+
+    properties["rating"] = {
+        "anyOf": [value_schema, {"type": "null"}],
+        "title": base_rating_schema.get("title", "Rating"),
+    }
+    return output_format
 
 
 def _rating_value(record):
@@ -168,13 +262,29 @@ def _rating_value(record):
     rating = parsed.get("rating")
     if rating is None:
         return None, "not_scored", ""
+    allowed = record["metadata"].get("allowed_values", [])
+    if isinstance(rating, str):
+        text_choices = [value for value in allowed if isinstance(value, str)]
+        if not text_choices:
+            return None, "parse_failed", "rating must be a number or null"
+        if rating not in text_choices:
+            choices = ", ".join(text_choices)
+            return None, "parse_failed", f"rating must be one of: {choices}"
+        return rating, "parsed", ""
+
     if isinstance(rating, bool) or not isinstance(rating, (int, float)):
-        return None, "parse_failed", "rating must be a number or null"
+        return None, "parse_failed", "rating must be a number, text, or null"
     if not math.isfinite(rating):
         return None, "parse_failed", "rating must be finite"
 
-    minimum = Decimal(str(record["metadata"]["min_value"]))
-    maximum = Decimal(str(record["metadata"]["max_value"]))
+    minimum_raw = record["metadata"].get("min_value")
+    maximum_raw = record["metadata"].get("max_value")
+    if minimum_raw is None or maximum_raw is None:
+        choices = ", ".join(str(value) for value in allowed)
+        return None, "parse_failed", f"rating must be one of: {choices}"
+
+    minimum = Decimal(str(minimum_raw))
+    maximum = Decimal(str(maximum_raw))
     value = Decimal(str(rating))
     if not minimum <= value <= maximum:
         return (
@@ -182,12 +292,13 @@ def _rating_value(record):
             "parse_failed",
             f"rating must be between {minimum:g} and {maximum:g}",
         )
-    allowed = [
+    numeric_choices = [
         Decimal(str(number))
-        for number in record["metadata"].get("allowed_values", [])
+        for number in allowed
+        if isinstance(number, (int, float)) and not isinstance(number, bool)
     ]
-    if allowed and value not in allowed:
-        choices = ", ".join(f"{number:g}" for number in allowed)
+    if numeric_choices and value not in numeric_choices:
+        choices = ", ".join(f"{number:g}" for number in numeric_choices)
         return None, "parse_failed", f"rating must be one of: {choices}"
     return f"{value:g}", "parsed", ""
 

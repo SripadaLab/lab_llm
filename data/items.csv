@@ -1,3 +1,5 @@
 item_id,prompt,min_value,max_value,scoring_values
 dep_01,"Rate depressed mood.",0,100,
+mood_01,"Rate the speaker's overall mood.",,,"Very negative | Negative | Neutral | Positive | Very positive"
 anx_01,"Rate anxiety frequency.",0,3,"0 = Not at all | 1 = Several days | 2 = More than half the days | 3 = Nearly every day"
+support_01,"Was helpful support described?",,,"Yes | No"

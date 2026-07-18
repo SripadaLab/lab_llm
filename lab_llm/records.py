@@ -15,14 +15,13 @@ from .structured import OutputContract
 
 
 def prepare_job(job, default_model, contract=None):
-    """Resolve defaults and fingerprint the exact request."""
+    """Resolve defaults and fingerprint the exact request.
+
+    An explicit job format may narrow the validation contract's schema. The
+    contract still validates the returned JSON after the API call.
+    """
     output_format = job.output_format
-    if contract is not None:
-        if output_format is not None and output_format != contract.output_format:
-            raise ValueError(
-                f"job {job.job_id!r} has an output_format that does not "
-                f"match contract {contract.contract_id!r}"
-            )
+    if contract is not None and output_format is None:
         output_format = contract.output_format
 
     request = {
@@ -85,7 +84,7 @@ def completed_record(job, request, result: LLMResult, attempt, duration):
             "total_tokens": result.usage.total_tokens,
         }
 
-    return {
+    record = {
         "job_id": job.job_id,
         "request_hash": request["request_hash"],
         "attempt": attempt,
@@ -101,6 +100,9 @@ def completed_record(job, request, result: LLMResult, attempt, duration):
         "response": _response_as_dict(result.response),
         "error": None,
     }
+    if result.deidentification is not None:
+        record["deidentification"] = result.deidentification.to_dict()
+    return record
 
 
 def failed_record(job, request, error: Exception, attempt, duration):
@@ -173,13 +175,16 @@ def attempt_counts(records):
 
 
 def _saved_request(request):
-    return {
+    saved = {
         "model": request["model"],
         "instructions": request["instructions"],
         "input": request["input"],
         "max_output_tokens": request["max_output_tokens"],
         "output_format": request["output_format"],
     }
+    if request.get("deidentification") is not None:
+        saved["deidentification"] = request["deidentification"]
+    return saved
 
 
 def _response_as_dict(response):

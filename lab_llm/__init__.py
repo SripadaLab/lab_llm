@@ -11,6 +11,19 @@ from .files import delete_file, temporary_file, upload_file
 from .jobs import LLMJob, run_jobs
 from .inputs import Item, ItemBank, PromptTemplate, Transcript, TranscriptBank
 from .progress import TokenPricing, load_token_pricing
+from .privacy import (
+    DeidentifiedInput,
+    DeidentifiedRecords,
+    DeidentificationResult,
+    DeidentificationSummary,
+    Deidentifier,
+    IdentifierMatch,
+    PRIVACY_LABELS,
+    PrivacyFilterUnavailableError,
+    deidentify_records,
+    deidentify_responses_input,
+    deidentify_text,
+)
 from .ratings import run_rating_batch
 from .structured import OutputContract
 from .tools import code_interpreter_tool, web_search_tool
@@ -38,6 +51,17 @@ __all__ = [
     "ItemBank",
     "TokenPricing",
     "load_token_pricing",
+    "Deidentifier",
+    "DeidentificationResult",
+    "DeidentificationSummary",
+    "IdentifierMatch",
+    "PRIVACY_LABELS",
+    "DeidentifiedRecords",
+    "DeidentifiedInput",
+    "PrivacyFilterUnavailableError",
+    "deidentify_text",
+    "deidentify_records",
+    "deidentify_responses_input",
     "run_rating_batch",
     "OutputContract",
 ]

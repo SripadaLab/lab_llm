@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from .config import get_client, get_model
 from .errors import LLMResponseError
+from .privacy import DeidentificationSummary, Deidentifier
 
 
 @dataclass
@@ -34,9 +35,15 @@ class LLMResult:
     usage: Optional[Usage] = None
     response_id: Optional[str] = None
     status: Optional[str] = None
+    deidentification: Optional[DeidentificationSummary] = None
 
     @classmethod
-    def from_response(cls, response) -> "LLMResult":
+    def from_response(
+        cls,
+        response,
+        *,
+        deidentification: Optional[DeidentificationSummary] = None,
+    ) -> "LLMResult":
         """Build a result from one completed OpenAI response."""
         if getattr(response, "status", None) != "completed":
             raise LLMResponseError(response)
@@ -61,6 +68,7 @@ class LLMResult:
             usage=usage,
             response_id=getattr(response, "id", None),
             status=getattr(response, "status", None),
+            deidentification=deidentification,
         )
 
 
@@ -71,6 +79,7 @@ def call_llm(
     model: Optional[str] = None,
     max_output_tokens: Optional[int] = None,
     output_format: Optional[dict[str, Any]] = None,
+    deidentifier: Optional[Deidentifier] = None,
 ) -> LLMResult:
     """Send `prompt` to the model and return the reply.
 
@@ -79,6 +88,7 @@ def call_llm(
     model              override the default model
     max_output_tokens  cap the response length
     output_format      optional Responses API text format
+    deidentifier       optional local Privacy Filter instance
 
     Example:
         result = call_llm("Why is the sky blue?", instructions="Be concise.")
@@ -108,6 +118,18 @@ def call_llm(
                 "output_format must contain JSON-compatible values"
             ) from exc
 
+    # De-identify before building an SDK request so raw text never reaches the
+    # client when the local filter is enabled.
+    privacy_summaries = []
+    if deidentifier is not None:
+        prompt_result = deidentifier.deidentify(prompt)
+        prompt = prompt_result.text
+        privacy_summaries.append(prompt_result.summary)
+        if instructions is not None:
+            instruction_result = deidentifier.deidentify(instructions)
+            instructions = instruction_result.text
+            privacy_summaries.append(instruction_result.summary)
+
     # Build the request, adding optional fields only when set.
     kwargs: dict = {"model": model or get_model(), "input": prompt}
     if instructions is not None:
@@ -118,4 +140,12 @@ def call_llm(
         kwargs["text"] = {"format": output_format}
 
     response = get_client().responses.create(**kwargs)
-    return LLMResult.from_response(response)
+    privacy_summary = (
+        DeidentificationSummary.combine(privacy_summaries)
+        if privacy_summaries
+        else None
+    )
+    return LLMResult.from_response(
+        response,
+        deidentification=privacy_summary,
+    )

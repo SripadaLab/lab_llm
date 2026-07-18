@@ -6,7 +6,28 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from lab_llm import delete_file, temporary_file, upload_file
+from lab_llm import (
+    DeidentificationResult,
+    IdentifierMatch,
+    delete_file,
+    temporary_file,
+    upload_file,
+)
+
+
+class FakeDeidentifier:
+    def deidentify(self, text):
+        match = IdentifierMatch(
+            label="private_person",
+            start=0,
+            end=len("Alice Smith"),
+            original="Alice Smith",
+            replacement="[PRIVATE_PERSON_1]",
+        )
+        return DeidentificationResult(
+            text=text.replace("Alice Smith", "[PRIVATE_PERSON_1]"),
+            matches=(match,) if "Alice Smith" in text else (),
+        )
 
 
 class FileTests(TestCase):
@@ -41,6 +62,35 @@ class FileTests(TestCase):
             with self.subTest(file_id=file_id):
                 with self.assertRaisesRegex(ValueError, "file_id"):
                     delete_file(file_id)
+
+    def test_uploads_only_an_in_memory_deidentified_text_copy(self):
+        uploaded = SimpleNamespace(id="file_test")
+        captured = {}
+
+        def create(*, file, purpose):
+            captured["name"] = file.name
+            captured["bytes"] = file.read()
+            captured["purpose"] = purpose
+            return uploaded
+
+        client = SimpleNamespace(files=SimpleNamespace(create=create))
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "notes.txt"
+            path.write_text("Met Alice Smith", encoding="utf-8")
+
+            with patch("lab_llm.files.get_client", return_value=client):
+                result = upload_file(
+                    path,
+                    deidentifier=FakeDeidentifier(),
+                )
+
+            self.assertEqual(path.read_text(), "Met Alice Smith")
+
+        self.assertIs(result, uploaded)
+        self.assertEqual(captured["name"], "notes.txt")
+        self.assertEqual(captured["purpose"], "user_data")
+        self.assertEqual(captured["bytes"], b"Met [PRIVATE_PERSON_1]")
+        self.assertNotIn(b"Alice Smith", captured["bytes"])
 
     def test_temporary_file_is_deleted_after_an_error(self):
         uploaded = SimpleNamespace(id="file_test")

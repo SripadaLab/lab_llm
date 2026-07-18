@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from .calls import LLMResult
 from .config import get_client, get_model
+from .privacy import DeidentificationSummary, Deidentifier
 
 
 class Conversation:
@@ -15,7 +16,14 @@ class Conversation:
         *,
         instructions: Optional[str] = None,
         model: Optional[str] = None,
+        deidentifier: Optional[Deidentifier] = None,
     ):
+        self.deidentifier = deidentifier
+        self._instruction_privacy = None
+        if instructions is not None and deidentifier is not None:
+            result = deidentifier.deidentify(instructions)
+            instructions = result.text
+            self._instruction_privacy = result.summary
         self._client = get_client()
         self.model = model or get_model()
         self.instructions = instructions
@@ -56,6 +64,12 @@ class Conversation:
             if not isinstance(fid, str) or not fid.strip():
                 raise ValueError("file_id must be a non-empty string")
 
+        prompt_privacy = None
+        if self.deidentifier is not None:
+            result = self.deidentifier.deidentify(prompt)
+            prompt = result.text
+            prompt_privacy = result.summary
+
         input_value: Any = prompt
         if ids:
             # Each file plus the prompt are content items in one user message.
@@ -76,7 +90,19 @@ class Conversation:
             kwargs["tools"] = tools
 
         response = self._client.responses.create(**kwargs)
-        return LLMResult.from_response(response)
+        privacy_summaries = [
+            summary
+            for summary in (self._instruction_privacy, prompt_privacy)
+            if summary is not None
+        ]
+        return LLMResult.from_response(
+            response,
+            deidentification=(
+                DeidentificationSummary.combine(privacy_summaries)
+                if privacy_summaries
+                else None
+            ),
+        )
 
     def delete(self):
         """Delete this conversation and its stored items from the service."""
@@ -98,7 +124,14 @@ class StatelessConversation:
         *,
         instructions: Optional[str] = None,
         model: Optional[str] = None,
+        deidentifier: Optional[Deidentifier] = None,
     ):
+        self.deidentifier = deidentifier
+        self._instruction_privacy = None
+        if instructions is not None and deidentifier is not None:
+            result = deidentifier.deidentify(instructions)
+            instructions = result.text
+            self._instruction_privacy = result.summary
         self._client = get_client()
         self.model = model or get_model()
         self.instructions = instructions
@@ -108,6 +141,12 @@ class StatelessConversation:
         """Send one turn, then keep its input and output in local history."""
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("prompt must be a non-empty string")
+
+        prompt_privacy = None
+        if self.deidentifier is not None:
+            result = self.deidentifier.deidentify(prompt)
+            prompt = result.text
+            prompt_privacy = result.summary
 
         user_message = {"role": "user", "content": prompt}
         input_items = [*self.history, user_message]
@@ -120,7 +159,19 @@ class StatelessConversation:
             kwargs["instructions"] = self.instructions
 
         response = self._client.responses.create(**kwargs)
-        result = LLMResult.from_response(response)
+        privacy_summaries = [
+            summary
+            for summary in (self._instruction_privacy, prompt_privacy)
+            if summary is not None
+        ]
+        result = LLMResult.from_response(
+            response,
+            deidentification=(
+                DeidentificationSummary.combine(privacy_summaries)
+                if privacy_summaries
+                else None
+            ),
+        )
 
         # Keep every output item. Reasoning and tool context matter too.
         self.history = [*input_items, *response.output]

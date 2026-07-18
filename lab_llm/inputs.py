@@ -162,8 +162,8 @@ class Item:
 
     item_id: str
     prompt: str
-    min_value: float
-    max_value: float
+    min_value: float | None
+    max_value: float | None
     scoring_values: str = ""
 
     def __post_init__(self) -> None:
@@ -173,22 +173,40 @@ class Item:
             raise ValueError("item prompt must be a non-empty string")
         for name in ("min_value", "max_value"):
             value = getattr(self, name)
+            if value is None:
+                continue
             if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise ValueError(f"item {name} must be a number")
+                raise ValueError(f"item {name} must be a number or null")
             if not math.isfinite(value):
                 raise ValueError(f"item {name} must be finite")
-        if self.min_value >= self.max_value:
+
+        bounds = (self.min_value, self.max_value)
+        if (self.min_value is None) != (self.max_value is None):
+            raise ValueError(
+                "item min_value and max_value must both be set or both be blank"
+            )
+        if self.min_value is not None and self.min_value >= self.max_value:
             raise ValueError("item min_value must be less than max_value")
 
         # Optional Likert values use a compact, CSV-friendly format:
         # "0 = Not at all | 1 = Several days | 2 = Nearly every day"
         values = self.value_labels
-        if values and (
-            values[0][0] != self.min_value
-            or values[-1][0] != self.max_value
-        ):
+        responses = self.acceptable_responses
+        if values and self.min_value is None:
+            raise ValueError(
+                "numeric scoring_values require min_value and max_value"
+            )
+        if values and (values[0][0], values[-1][0]) != bounds:
             raise ValueError(
                 "scoring_values must start at min_value and end at max_value"
+            )
+        if responses and self.min_value is not None:
+            raise ValueError(
+                "text scoring_values require blank min_value and max_value"
+            )
+        if not values and not responses and self.min_value is None:
+            raise ValueError(
+                "items without numeric bounds must define text scoring_values"
             )
 
     @property
@@ -199,8 +217,17 @@ class Item:
         if not self.scoring_values.strip():
             return ()
 
+        entries = [entry.strip() for entry in self.scoring_values.split("|")]
+        has_labels = ["=" in entry for entry in entries]
+        if not all(has_labels):
+            if any(has_labels):
+                raise ValueError(
+                    "scoring_values cannot mix numeric labels and text responses"
+                )
+            return ()
+
         values = []
-        for entry in self.scoring_values.split("|"):
+        for entry in entries:
             number, separator, label = entry.partition("=")
             if not separator or not number.strip() or not label.strip():
                 raise ValueError(
@@ -220,12 +247,49 @@ class Item:
         return tuple(values)
 
     @property
+    def acceptable_responses(self) -> tuple[str, ...]:
+        """Return exact user-defined text responses, in declared order."""
+        if not isinstance(self.scoring_values, str):
+            raise ValueError("item scoring_values must be a string")
+        if not self.scoring_values.strip():
+            return ()
+
+        entries = tuple(entry.strip() for entry in self.scoring_values.split("|"))
+        if any("=" in entry for entry in entries):
+            return ()
+        if any(not entry for entry in entries):
+            raise ValueError("text scoring values must be non-empty")
+        if len(entries) != len(set(entries)):
+            raise ValueError("text scoring values must be unique")
+        return entries
+
+    @property
+    def allowed_values(self) -> tuple[float | str, ...]:
+        """Return exact allowed values, when the item is discrete."""
+        if self.acceptable_responses:
+            return self.acceptable_responses
+        return tuple(value for value, _ in self.value_labels)
+
+    @property
     def scoring_guide(self) -> str:
         """Format a scale for insertion into a model prompt."""
+        if self.acceptable_responses:
+            choices = "\n".join(f"- {value}" for value in self.acceptable_responses)
+            return f"Return exactly one of these text responses:\n{choices}"
         if not self.value_labels:
             return "Any number in the allowed range."
         return "\n".join(
             f"{value:g} = {label}" for value, label in self.value_labels
+        )
+
+    @property
+    def response_requirements(self) -> str:
+        """Format only the requirements that apply to this response type."""
+        if self.acceptable_responses:
+            return self.scoring_guide
+        return (
+            f"Numeric range: {self.min_value:g} to {self.max_value:g}.\n"
+            f"{self.scoring_guide}"
         )
 
 
@@ -248,7 +312,7 @@ class ItemBank:
 
     @classmethod
     def from_csv(cls, path: str | Path) -> "ItemBank":
-        """Load identified, bounded rating items from a UTF-8 CSV file."""
+        """Load numeric or categorical rating items from a UTF-8 CSV file."""
         path = Path(path)
         try:
             with path.open(newline="", encoding="utf-8-sig") as file:
@@ -274,8 +338,8 @@ class ItemBank:
                         item = Item(
                             item_id=item_id,
                             prompt=prompt,
-                            min_value=float(min_value),
-                            max_value=float(max_value),
+                            min_value=float(min_value) if min_value else None,
+                            max_value=float(max_value) if max_value else None,
                             scoring_values=scoring_values,
                         )
                     except ValueError as exc:

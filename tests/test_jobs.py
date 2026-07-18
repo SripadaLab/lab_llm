@@ -5,11 +5,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from pydantic import BaseModel, ConfigDict
 
 from lab_llm import (
+    DeidentificationResult,
+    DeidentificationSummary,
+    IdentifierMatch,
     LLMJob,
     LLMResponseError,
     LLMResult,
@@ -18,6 +21,22 @@ from lab_llm import (
     Usage,
     run_jobs,
 )
+
+
+class FakeDeidentifier:
+    def deidentify(self, text):
+        count = text.count("Alice Smith")
+        match = IdentifierMatch(
+            label="private_person",
+            start=0,
+            end=len("Alice Smith"),
+            original="Alice Smith",
+            replacement="[PRIVATE_PERSON_1]",
+        )
+        return DeidentificationResult(
+            text=text.replace("Alice Smith", "[PRIVATE_PERSON_1]"),
+            matches=(match,) * count,
+        )
 
 
 class Rating(BaseModel):
@@ -117,6 +136,125 @@ class JobTests(TestCase):
         call.assert_not_called()
         self.assertEqual(second, first)
         self.assertEqual(len(saved_lines), 1)
+
+    def test_deidentifies_jobs_before_calls_or_durable_request_storage(self):
+        job = LLMJob(
+            "job-1",
+            "Review Alice Smith",
+            instructions="Protect Alice Smith",
+            model="test-model",
+        )
+        call = Mock(return_value=completed_result())
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch("lab_llm.jobs.call_llm", call):
+                records = run_jobs(
+                    [job],
+                    output,
+                    deidentifier=FakeDeidentifier(),
+                )
+            saved_text = output.read_text(encoding="utf-8")
+
+        self.assertEqual(call.call_args.args, ("Review [PRIVATE_PERSON_1]",))
+        self.assertEqual(
+            call.call_args.kwargs["instructions"],
+            "Protect [PRIVATE_PERSON_1]",
+        )
+        self.assertNotIn("Alice Smith", saved_text)
+        self.assertEqual(
+            records[0]["request"]["deidentification"]["identifier_count"],
+            2,
+        )
+
+    def test_scopes_deidentification_using_job_metadata(self):
+        jobs = [
+            LLMJob(
+                "T1-I1",
+                "First item",
+                model="test-model",
+                metadata={"transcript_id": "T1"},
+            ),
+            LLMJob(
+                "T1-I2",
+                "Second item",
+                model="test-model",
+                metadata={"transcript_id": "T1"},
+            ),
+            LLMJob(
+                "T2-I1",
+                "Third item",
+                model="test-model",
+                metadata={"transcript_id": "T2"},
+            ),
+        ]
+        deidentifier = Mock()
+        deidentifier.deidentify.side_effect = lambda text, *, scope: (
+            DeidentificationResult(
+                text=f"[{scope}] {text}",
+                matches=(),
+            )
+        )
+        llm_call = Mock(return_value=completed_result())
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch("lab_llm.jobs.call_llm", llm_call):
+                run_jobs(
+                    jobs,
+                    output,
+                    deidentifier=deidentifier,
+                    deidentification_scope_key="transcript_id",
+                )
+
+        self.assertEqual(deidentifier.deidentify.call_args_list, [
+            call("First item", scope="T1"),
+            call("Second item", scope="T1"),
+            call("Third item", scope="T2"),
+        ])
+        self.assertEqual(
+            [request.args[0] for request in llm_call.call_args_list],
+            ["[T1] First item", "[T1] Second item", "[T2] Third item"],
+        )
+
+    def test_scoped_deidentification_requires_scope_metadata(self):
+        job = LLMJob("job-1", "Rate this", model="test-model")
+        deidentifier = Mock()
+
+        with TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "transcript_id"):
+                run_jobs(
+                    [job],
+                    Path(directory) / "raw_results.jsonl",
+                    deidentifier=deidentifier,
+                    deidentification_scope_key="transcript_id",
+                )
+
+        deidentifier.deidentify.assert_not_called()
+
+    def test_saves_precomputed_deidentification_without_filtering_prompt(self):
+        job = LLMJob("job-1", "Already filtered", model="test-model")
+        summary = DeidentificationSummary(
+            text_count=1,
+            identifier_count=2,
+            counts_by_label={"private_person": 2},
+        )
+        llm_call = Mock(return_value=completed_result())
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch("lab_llm.jobs.call_llm", llm_call):
+                records = run_jobs(
+                    [job],
+                    output,
+                    deidentification_by_job={"job-1": summary},
+                )
+
+        self.assertEqual(llm_call.call_args.args, ("Already filtered",))
+        self.assertEqual(
+            records[0]["request"]["deidentification"],
+            summary.to_dict(),
+        )
 
     def test_validates_output_and_saves_plain_json(self):
         job = LLMJob("job-1", "Rate this", model="test-model")
@@ -227,23 +365,42 @@ class JobTests(TestCase):
 
         self.assertEqual(records[0]["parsed_output"], {"rating": None})
 
-    def test_rejects_an_output_format_that_disagrees_with_contract(self):
+    def test_contract_allows_a_narrower_job_output_format(self):
+        narrow_format = {
+            **RATING_CONTRACT.output_format,
+            "schema": {
+                **RATING_CONTRACT.output_format["schema"],
+                "properties": {
+                    "rating": {
+                        "anyOf": [
+                            {"type": "integer", "enum": [1, 2, 3]},
+                            {"type": "null"},
+                        ]
+                    }
+                },
+            },
+        }
         job = LLMJob(
             "job-1",
             "Rate this",
             model="test-model",
-            output_format={"type": "json_schema", "name": "other"},
+            output_format=narrow_format,
         )
 
-        with patch("lab_llm.jobs.call_llm") as call:
-            with self.assertRaisesRegex(ValueError, "does not match contract"):
-                run_jobs(
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "raw_results.jsonl"
+            with patch(
+                "lab_llm.jobs.call_llm",
+                return_value=completed_result(text='{"rating": 3}'),
+            ) as call:
+                records = run_jobs(
                     [job],
-                    "unused.jsonl",
+                    output,
                     output_contract=RATING_CONTRACT,
                 )
 
-        call.assert_not_called()
+        self.assertEqual(call.call_args.kwargs["output_format"], narrow_format)
+        self.assertEqual(records[0]["parsed_output"], {"rating": 3.0})
 
     def test_records_failure_then_retries_it_on_the_next_run(self):
         job = LLMJob("job-1", "Rate this", model="test-model")

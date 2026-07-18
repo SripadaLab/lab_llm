@@ -46,7 +46,7 @@ Write-Host "==> Installing a private Python $PythonVersion (this may take a minu
 Write-Host "==> Creating the environment (.venv) and installing packages..."
 & $Uv venv (Join-Path $Project ".venv") --python $PythonVersion
 $env:VIRTUAL_ENV = Join-Path $Project ".venv"
-& $Uv pip install -e "${Project}[agents]"
+& $Uv pip install -e "${Project}[agents,privacy]"
 
 # 4. Create a .env for your API key if you don't have one yet.
 $EnvFile = Join-Path $Project ".env"

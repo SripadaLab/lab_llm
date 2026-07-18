@@ -1,0 +1,18 @@
+Requested response:
+{item}
+Response requirements:
+{response_requirements}
+
+Evidence requirements:
+- For a scored response, give exactly one brief justification.
+- Support it with exactly one short, contiguous quote copied directly from the
+  Transcript section below.
+- Copy the quote character for character. Do not add, remove, reorder, or
+  replace words. Preserve its capitalization and punctuation exactly.
+- Before responding, confirm that the quote appears unchanged in the
+  Transcript section below.
+- Do not quote the requested response or these instructions.
+- For a null response, return an empty justifications list.
+
+Transcript:
+{transcript}

@@ -15,7 +15,7 @@ class Rating(BaseModel):
 
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
-    rating: float | None
+    rating: float | str | None
 
 
 def classify_rating(record):
@@ -42,9 +42,17 @@ def classify_rating(record):
     if rating is None:
         return "not_scored", None
 
+    allowed = record["metadata"].get("allowed_values", [])
+    if isinstance(rating, str):
+        if rating not in allowed:
+            return "parse_failed", rating
+        return "parsed", rating
+
     minimum = record["metadata"]["min_value"]
     maximum = record["metadata"]["max_value"]
     if not minimum <= rating <= maximum:
+        return "parse_failed", rating
+    if allowed and rating not in allowed:
         return "parse_failed", rating
 
     return "parsed", rating

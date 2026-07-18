@@ -11,6 +11,9 @@ dependencies = [
 
 [project.optional-dependencies]
 agents = ["openai-agents>=0.18.2"]
+privacy = [
+    "opf @ git+https://github.com/openai/privacy-filter.git@f7f00ca7fb869683eb732c010299d901457f19c3",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

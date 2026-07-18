@@ -18,6 +18,7 @@ lab_llm/                the reusable package (install once, use everywhere)
   inputs.py             prompt templates, transcripts, and item banks
   progress.py           elapsed time, ETA, and token-cost estimates
   structured.py         versioned output types and validation rules
+  privacy.py            local PII detection + stable pseudonyms
   files.py              persistent or temporary Files API uploads
   tools.py              readable hosted-tool configurations
   config.py             API key + model, loaded from the environment
@@ -37,6 +38,7 @@ examples/                runnable examples from the workshop
   12_mood_diary_workflow/ extract, synthesize, score, audit, report
   13_tool_calling/       raw Responses API function-tool loop
   14_research_agent/     multi-turn study investigator + hosted Python
+  15_local_deidentification/ preview and locally filter research text
 data/                   shared sample transcripts, item banks, and instructions
   mood_diaries/          eight synthetic, dated diary entries
   model_pricing.csv      saved OpenAI token-price snapshot for long runs
@@ -93,8 +95,8 @@ with every turn. Both reuse their instructions across turns.
 
 `PromptTemplate` validates named placeholders before a run. `TranscriptBank`
 loads one text file per transcript. `ItemBank` loads uniquely identified items
-and numeric bounds from CSV. Each stays iterable, so the transcript x item loop
-remains ordinary Python.
+with numeric bounds or exact user-defined text responses from CSV. Each stays
+iterable, so the transcript x item loop remains ordinary Python.
 
 `call_llm()` fails closed when a response is incomplete or failed. It raises
 `LLMResponseError` with the full response attached. OpenAI SDK exceptions are
@@ -114,14 +116,73 @@ command line, preflight, resume, validation, CSV, and run summary. Use
 `run_jobs()` directly when a study needs a different job shape.
 
 Jobs may also carry an explicit Responses API `output_format`. The ratings
-example uses strict Structured Outputs, validates item-specific ranges
-again locally, supports a zero-call `--dry-run`, and saves `summary.json`.
+example uses strict Structured Outputs, validates item-specific ranges or exact
+text choices again locally, supports a zero-call `--dry-run`, and saves
+`summary.json`.
 
 `OutputContract` versions a Pydantic output type. It produces the Responses API
 JSON Schema and parses JSON into that Python type. Pass it to `run_jobs()` to
 validate each completed response before the parent process saves it. Parsed
 output is saved as plain JSON. With the lower-level runner, research-specific
 checks remain in the calling code.
+
+## Optional local de-identification
+
+OpenAI Privacy Filter is an optional, open-weight model that runs before an API
+request. Unfiltered text stays on the researcher's machine; only the filtered
+copy is sent to the configured LLM endpoint. The standard workshop setup
+installs its pinned official runtime package. If this environment was created
+before local de-identification was added, update it once with:
+
+```bash
+.bin/uv pip install --python .venv/bin/python -e ".[agents,privacy]"
+```
+
+The first use downloads the model checkpoint to `~/.opf/privacy_filter`. For an
+offline or controlled environment, download and approve the checkpoint first,
+set `OPF_CHECKPOINT` to that local directory, and then disable network access.
+CPU execution is the workshop default; pass `device="cuda"` on a supported GPU.
+The optional checkpoint is outside this project, so the workshop uninstall
+scripts do not remove it.
+
+Reuse one `Deidentifier` across related text so the same person receives the
+same process-local placeholder:
+
+```python
+from lab_llm import Deidentifier, call_llm
+
+privacy = Deidentifier(device="cpu")
+preview = privacy.deidentify("Interview with Maya Chen on 2026-04-12.")
+print(preview.preview())                 # local review; reveals detected PII
+
+result = call_llm(
+    "Interview with Maya Chen on 2026-04-12.",
+    instructions="Summarize the interview.",
+    deidentifier=privacy,
+)
+print(result.deidentification.to_dict()) # counts only; no original PII
+```
+
+The same `deidentifier=` option is supported by `Conversation`,
+`StatelessConversation`, `run_jobs`, `run_rating_batch`, `upload_file`, and
+`temporary_file`. Filter selected CSV/JSON-style columns with
+`deidentify_records()`. For raw SDK calls with message lists or local function
+tool output, pass the input through `deidentify_responses_input()` before
+`client.responses.create()`.
+
+Filtered uploads support UTF-8 text files. Extract text from PDF, Word, images,
+audio, and other binary formats before filtering; passing an already-uploaded
+file ID cannot retroactively protect that file. Direct `OpenAI()` calls also
+bypass `lab_llm`, so they must use `deidentify_responses_input()` explicitly.
+
+Privacy Filter reduces exposure; it does not prove that data is anonymous or
+compliant with a particular policy. Its taxonomy can miss study-specific IDs,
+rare attributes, and combinations of details that permit re-identification.
+Evaluate it on representative in-domain data, tune the operating point when
+needed, retain an appropriate review path, and document which labels are
+filtered. The default filters all eight released label categories. Selecting a
+subset can preserve analytically important fields, but should be a deliberate,
+reviewed policy choice.
 
 Optional `.env` settings:
 
@@ -146,8 +207,11 @@ Leave either setting unset to use the OpenAI SDK default.
 .\scripts\uninstall.ps1     # Windows
 ```
 
-This deletes the private Python, the environment, caches, and `.env`. Source
-code and run outputs stay. Deleting the whole folder removes those too.
+This deletes the private Python, the environment—including the installed
+Privacy Filter runtime—caches, and `.env`. Source code and run outputs stay.
+Privacy Filter checkpoints outside the project stay because they may be shared
+with other projects. Deleting the whole folder removes the remaining
+project-local files.
 
 ### Prefer your own Python?
 
@@ -156,7 +220,7 @@ If you already have Python 3.10+ and would rather manage it yourself:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -e ".[agents]"
+pip install -e ".[agents,privacy]"
 cp .env.example .env           # then add your OpenAI key
 python examples/01_first_call/example.py
 ```

@@ -2,6 +2,8 @@
 #
 # Deletes the private Python, the environment, caches, the downloaded tool,
 # and your .env. Source code and run outputs stay.
+# Privacy Filter checkpoints outside this folder stay because they may be
+# shared with other projects.
 # (Deleting the whole folder removes those too.)
 #
 # Usage:  .\scripts\uninstall.ps1
@@ -14,6 +16,7 @@ Set-Location $Project
 
 Write-Host "This removes the private Python, the .venv environment, caches, and .env."
 Write-Host "Source code and run outputs stay. Folder: $Project"
+Write-Host "Privacy Filter checkpoints outside this folder also stay."
 $reply = Read-Host "Continue? [y/N]"
 if ($reply -notmatch '^(y|Y|yes|YES)$') {
     Write-Host "Cancelled."
@@ -34,4 +37,5 @@ Get-ChildItem -Path $Project -Directory -Filter "*.egg-info" -ErrorAction Silent
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "Done. Source code and run outputs remain."
+Write-Host "Shared Privacy Filter checkpoints were not removed."
 Write-Host "To set up again:  .\scripts\setup.ps1"

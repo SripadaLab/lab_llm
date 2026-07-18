@@ -1,13 +1,34 @@
 """Small helpers for files stored through the OpenAI Files API."""
 from contextlib import contextmanager
+from io import BytesIO
 from pathlib import Path
+from typing import Optional
 
 from .config import get_client
+from .privacy import Deidentifier
 
 
-def upload_file(path: str | Path):
-    """Upload one local file for model input and return its File object."""
+def upload_file(
+    path: str | Path,
+    *,
+    deidentifier: Optional[Deidentifier] = None,
+):
+    """Upload a file, optionally filtering a UTF-8 text copy first."""
     path = Path(path)
+
+    if deidentifier is not None:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                "local de-identification supports UTF-8 text files; extract "
+                "text from binary documents before uploading"
+            ) from exc
+        filtered = deidentifier.deidentify(text)
+        file = BytesIO(filtered.text.encode("utf-8"))
+        file.name = path.name
+        with file:
+            return get_client().files.create(file=file, purpose="user_data")
 
     # The SDK uploads bytes. The context manager closes the file after upload.
     with path.open("rb") as file:
@@ -24,9 +45,13 @@ def delete_file(file_id: str):
 
 
 @contextmanager
-def temporary_file(path: str | Path):
+def temporary_file(
+    path: str | Path,
+    *,
+    deidentifier: Optional[Deidentifier] = None,
+):
     """Upload one file, then delete it when the `with` block ends."""
-    uploaded = upload_file(path)
+    uploaded = upload_file(path, deidentifier=deidentifier)
     try:
         yield uploaded
     finally:

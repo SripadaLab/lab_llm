@@ -48,3 +48,43 @@ class ResultChecksExampleTests(TestCase):
             )
 
         self.assertIn("parsed              72.0", completed.stdout)
+
+    def test_validates_categorical_results(self):
+        records = [
+            {
+                "job_id": "T01-support",
+                "status": "completed",
+                "parsed_output": {"rating": "Yes"},
+                "metadata": {
+                    "min_value": None,
+                    "max_value": None,
+                    "allowed_values": ["Yes", "No"],
+                },
+            },
+            {
+                "job_id": "T02-support",
+                "status": "completed",
+                "parsed_output": {"rating": "Maybe"},
+                "metadata": {
+                    "min_value": None,
+                    "max_value": None,
+                    "allowed_values": ["Yes", "No"],
+                },
+            },
+        ]
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "raw_results.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPT), str(path)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertIn("parsed              Yes", completed.stdout)
+        self.assertIn("parse_failed        Maybe", completed.stdout)

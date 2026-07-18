@@ -16,7 +16,7 @@ On Windows:
 .\scripts\run.ps1 examples\09_check_results\run_example.py
 ```
 
-Twenty API calls. Sequential. Replaces only
+Forty API calls. Sequential. Replaces only
 `runs/09-check-results-demo/` each time.
 
 ## Check the included JSONL

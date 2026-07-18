@@ -4,6 +4,8 @@
 #
 # Deletes the private Python, the environment, caches, the downloaded tool,
 # and your .env. Source code and run outputs stay.
+# Privacy Filter checkpoints outside this folder stay because they may be
+# shared with other projects.
 # (Deleting the whole folder removes those too.)
 #
 # Usage:  ./scripts/uninstall.sh
@@ -16,6 +18,7 @@ cd "$PROJECT"
 
 echo "This removes the private Python, the .venv environment, caches, and .env."
 echo "Source code and run outputs stay. Folder: $PROJECT"
+echo "Privacy Filter checkpoints outside this folder also stay."
 printf "Continue? [y/N] "
 read -r reply
 case "$reply" in
@@ -35,4 +38,5 @@ rm -rf "$PROJECT"/*.egg-info "$PROJECT/uv.lock"
 find "$PROJECT" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
 
 echo "Done. Source code and run outputs remain."
+echo "Shared Privacy Filter checkpoints were not removed."
 echo "To set up again:  ./scripts/setup.sh"

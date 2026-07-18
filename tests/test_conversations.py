@@ -4,7 +4,13 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from lab_llm import Conversation, LLMResponseError, StatelessConversation
+from lab_llm import (
+    Conversation,
+    DeidentificationResult,
+    IdentifierMatch,
+    LLMResponseError,
+    StatelessConversation,
+)
 
 
 class FakeResponses:
@@ -18,6 +24,22 @@ class FakeResponses:
         if self.error is not None:
             raise self.error
         return self.responses.pop(0)
+
+
+class FakeDeidentifier:
+    def deidentify(self, text):
+        count = text.count("Alice Smith")
+        match = IdentifierMatch(
+            label="private_person",
+            start=0,
+            end=len("Alice Smith"),
+            original="Alice Smith",
+            replacement="[PRIVATE_PERSON_1]",
+        )
+        return DeidentificationResult(
+            text=text.replace("Alice Smith", "[PRIVATE_PERSON_1]"),
+            matches=(match,) * count,
+        )
 
 
 class ConversationTests(TestCase):
@@ -244,6 +266,36 @@ class ConversationTests(TestCase):
             }],
         )
 
+    def test_deidentifies_each_server_stored_turn_and_instructions(self):
+        response = SimpleNamespace(
+            id="resp_test",
+            output_text="Done",
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        responses = FakeResponses([response])
+        client = SimpleNamespace(
+            conversations=SimpleNamespace(
+                create=lambda: SimpleNamespace(id="conv_test")
+            ),
+            responses=responses,
+        )
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            result = Conversation(
+                model="test-model",
+                instructions="Focus on Alice Smith",
+                deidentifier=FakeDeidentifier(),
+            ).send("Review Alice Smith")
+
+        self.assertNotIn("Alice Smith", repr(responses.calls[0]))
+        self.assertEqual(
+            responses.calls[0]["input"],
+            "Review [PRIVATE_PERSON_1]",
+        )
+        self.assertEqual(result.deidentification.identifier_count, 2)
+
     def test_rejects_invalid_turns_before_creating_a_response(self):
         responses = FakeResponses()
         client = SimpleNamespace(
@@ -388,6 +440,30 @@ class StatelessConversationTests(TestCase):
             chat.send("Do not keep this turn")
 
         self.assertEqual(chat.history, [])
+
+    def test_local_history_keeps_only_deidentified_user_text(self):
+        response = SimpleNamespace(
+            id="resp_test",
+            output_text="Done",
+            output=[],
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        client = SimpleNamespace(responses=FakeResponses([response]))
+
+        with patch("lab_llm.conversations.get_client", return_value=client):
+            chat = StatelessConversation(
+                model="test-model",
+                deidentifier=FakeDeidentifier(),
+            )
+            chat.send("Review Alice Smith")
+
+        self.assertEqual(
+            chat.history,
+            [{"role": "user", "content": "Review [PRIVATE_PERSON_1]"}],
+        )
+        self.assertNotIn("Alice Smith", repr(responses := client.responses.calls))
 
     def test_sdk_errors_are_not_hidden_or_added_to_history(self):
         error = RuntimeError("API unavailable")

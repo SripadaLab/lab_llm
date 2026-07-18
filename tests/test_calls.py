@@ -2,8 +2,9 @@
 
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+from lab_llm import DeidentificationResult, IdentifierMatch
 from lab_llm.calls import call_llm
 from lab_llm.errors import LLMResponseError
 
@@ -19,6 +20,24 @@ class FakeResponses:
         if self.error is not None:
             raise self.error
         return self.response
+
+
+class FakeDeidentifier:
+    def deidentify(self, text):
+        matches = tuple(
+            IdentifierMatch(
+                label="private_person",
+                start=0,
+                end=len("Alice Smith"),
+                original="Alice Smith",
+                replacement="[PRIVATE_PERSON_1]",
+            )
+            for _ in range(text.count("Alice Smith"))
+        )
+        return DeidentificationResult(
+            text=text.replace("Alice Smith", "[PRIVATE_PERSON_1]"),
+            matches=matches,
+        )
 
 
 class CallLlmTests(TestCase):
@@ -94,6 +113,51 @@ class CallLlmTests(TestCase):
                 },
             },
         )
+
+    def test_deidentifies_prompt_and_instructions_before_the_sdk_call(self):
+        response = SimpleNamespace(
+            id="resp_test",
+            output_text="done",
+            model="test-model",
+            status="completed",
+            usage=None,
+        )
+        responses = FakeResponses(response=response)
+        client = SimpleNamespace(responses=responses)
+
+        with patch("lab_llm.calls.get_client", return_value=client):
+            result = call_llm(
+                "Summarize Alice Smith",
+                instructions="Protect Alice Smith",
+                model="test-model",
+                deidentifier=FakeDeidentifier(),
+            )
+
+        self.assertEqual(
+            responses.kwargs["input"],
+            "Summarize [PRIVATE_PERSON_1]",
+        )
+        self.assertEqual(
+            responses.kwargs["instructions"],
+            "Protect [PRIVATE_PERSON_1]",
+        )
+        self.assertNotIn("Alice Smith", repr(responses.kwargs))
+        self.assertEqual(result.deidentification.identifier_count, 2)
+
+    def test_filter_failure_happens_before_client_creation(self):
+        deidentifier = SimpleNamespace(
+            deidentify=Mock(side_effect=RuntimeError("local filter failed"))
+        )
+
+        with patch("lab_llm.calls.get_client") as get_client:
+            with self.assertRaisesRegex(RuntimeError, "local filter failed"):
+                call_llm(
+                    "Review Alice Smith",
+                    model="test-model",
+                    deidentifier=deidentifier,
+                )
+
+        get_client.assert_not_called()
 
     def test_sdk_errors_are_not_hidden(self):
         error = RuntimeError("API unavailable")

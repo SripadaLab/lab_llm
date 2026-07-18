@@ -1,8 +1,7 @@
-Requested rating:
+Requested response:
 {item}
-Allowed range: {min_value} to {max_value}.
-Scoring values:
-{scoring_values}
+Response requirements:
+{response_requirements}
 
 Transcript:
 {transcript}
