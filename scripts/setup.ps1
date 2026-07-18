@@ -40,13 +40,28 @@ if (-not (Test-Path $Uv)) {
 
 # 2. Download a private Python, just for this project.
 Write-Host "==> Installing a private Python $PythonVersion (this may take a minute)..."
-& $Uv python install $PythonVersion
+& $Uv python install $PythonVersion --no-bin --no-registry
+if ($LASTEXITCODE -ne 0) {
+    throw "uv could not install the private Python runtime (exit code $LASTEXITCODE)."
+}
 
 # 3. Create the environment and install the workshop package + dependencies.
 Write-Host "==> Creating the environment (.venv) and installing packages..."
-& $Uv venv (Join-Path $Project ".venv") --python $PythonVersion
-$env:VIRTUAL_ENV = Join-Path $Project ".venv"
+$Venv = Join-Path $Project ".venv"
+$VenvPython = Join-Path $Venv "Scripts\python.exe"
+if (Test-Path $VenvPython) {
+    Write-Host "==> Environment already present, keeping it."
+} else {
+    & $Uv venv $Venv --python $PythonVersion
+    if ($LASTEXITCODE -ne 0) {
+        throw "uv could not create the virtual environment (exit code $LASTEXITCODE)."
+    }
+}
+$env:VIRTUAL_ENV = $Venv
 & $Uv pip install -e "${Project}[agents,privacy]"
+if ($LASTEXITCODE -ne 0) {
+    throw "uv could not install the workshop packages (exit code $LASTEXITCODE)."
+}
 
 # 4. Create a .env for your API key if you don't have one yet.
 $EnvFile = Join-Path $Project ".env"

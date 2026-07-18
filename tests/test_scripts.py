@@ -1,12 +1,13 @@
 """Tests for the thin platform runner scripts."""
 
 import json
+import os
 import shutil
 import stat
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest import TestCase
+from unittest import TestCase, skipIf
 
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,24 @@ class RunnerTests(TestCase):
         self.assertIn('${PROJECT}[agents,privacy]', posix)
         self.assertIn('${Project}[agents,privacy]', powershell)
 
+    def test_windows_setup_stays_local_and_checks_native_failures(self):
+        script = (PROJECT / "scripts" / "setup.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("--no-bin --no-registry", script)
+        self.assertIn("Test-Path $VenvPython", script)
+        self.assertGreaterEqual(script.count("if ($LASTEXITCODE -ne 0)"), 3)
+
+    def test_research_agent_terminal_markers_are_windows_safe(self):
+        script = (
+            PROJECT / "examples" / "14_research_agent" / "example.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("→", script)
+        self.assertNotIn("›", script)
+
+    @skipIf(os.name == "nt", "POSIX shell script test")
     def test_posix_uninstall_removes_setup_but_keeps_source_and_outputs(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
@@ -77,6 +96,7 @@ class RunnerTests(TestCase):
         self.assertIn('Filter "__pycache__"', script)
         self.assertIn("checkpoints outside this folder", script)
 
+    @skipIf(os.name == "nt", "POSIX shell script test")
     def test_posix_runner_forwards_every_argument(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)

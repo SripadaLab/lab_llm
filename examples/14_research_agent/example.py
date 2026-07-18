@@ -17,10 +17,10 @@ class TerminalHooks(RunHooks):
     async def on_llm_start(
         self, context, agent, system_prompt, input_items
     ) -> None:
-        print("  → model request")
+        print("  -> model request")
 
     async def on_tool_start(self, context, agent, tool) -> None:
-        print(f"  → {tool.name}")
+        print(f"  -> {tool.name}")
 
     async def on_llm_end(self, context, agent, response) -> None:
         # Hosted tools run inside the model response, not in local Python.
@@ -28,7 +28,7 @@ class TerminalHooks(RunHooks):
             getattr(item, "type", "") == "code_interpreter_call"
             for item in response.output
         ):
-            print("  → code_interpreter")
+            print("  -> code_interpreter")
 
 
 investigator = Agent(
@@ -64,7 +64,7 @@ def main() -> None:
 
     while True:
         try:
-            question = input("You › ").strip()
+            question = input("You > ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nGoodbye.")
             break
@@ -87,7 +87,7 @@ def main() -> None:
             print(f"\nCould not complete that turn: {exc}\n")
             continue
 
-        print(f"\nAgent › {result.final_output}\n")
+        print(f"\nAgent > {result.final_output}\n")
 
 
 if __name__ == "__main__":
