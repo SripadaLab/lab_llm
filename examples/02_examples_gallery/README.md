@@ -39,6 +39,6 @@ does not complete.
 
 Exact output varies. The fields explored here remain the same.
 
-The `reasoning` example needs a parameter (`reasoning={"effort": "medium"}`)
-that the `call_llm` helper does not wrap, so it drops down to the raw client.
-That is the escape hatch whenever the helper is too small for what you need.
+The `reasoning` example needs `reasoning={"effort": "medium"}`, which `call_llm`
+does not wrap, so it drops to the raw client—the escape hatch when the helper is
+too small.

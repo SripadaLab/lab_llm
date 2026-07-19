@@ -51,6 +51,6 @@ Twelve calls total. Re-running resumes completed model calls.
 Raw API records stay under `_raw/`. They are not mixed with the clean research
 artifacts.
 
-The salience formula is a transparent demonstration heuristic, not a validated
-measure: 70% diary coverage and 30% mean extracted importance. Python computes
-it. The model never counts or sorts.
+The salience formula is a demonstration heuristic, not a validated measure: 70%
+diary coverage + 30% mean extracted importance, computed in Python. The model
+never counts or sorts.

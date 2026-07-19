@@ -41,9 +41,8 @@ response = OpenAI().responses.create(
 print(safe.summary.to_dict())
 ```
 
-`preview()` includes the original detected strings and is intended for local
-review only. Use `summary.to_dict()` for logs because it contains counts and
-warnings but no original identifiers.
+`preview()` shows original detected strings for local review only; use
+`summary.to_dict()` in logs (counts and warnings, no identifiers).
 
-This is a PII-masking layer, not proof of anonymization or compliance. Validate
-it against representative study data and the study's approved privacy policy.
+This is a PII-masking layer, not proof of anonymization. Validate it against
+representative study data and your approved privacy policy.
