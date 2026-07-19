@@ -1,5 +1,31 @@
 """Local text de-identification with OpenAI Privacy Filter.
 
+This module masks personally identifying information (PII) in text *before* it
+is sent to an LLM. The Privacy Filter model runs locally, so the original text
+never leaves the machine; only the filtered copy is sent onward.
+
+Stable placeholders
+-------------------
+Reuse **one** ``Deidentifier`` instance across related texts so the same
+identifier always maps to the same placeholder. The first person detected
+becomes ``[PRIVATE_PERSON_1]``, the next distinct person ``[PRIVATE_PERSON_2]``,
+and so on. Matching is normalized for casing and whitespace, so ``"Maya Chen"``
+and ``"maya  chen"`` collapse to the same placeholder (see
+``Deidentifier._replacement_for``). This keeps references consistent for
+downstream analysis while revealing nothing about the original value.
+
+A ``scope`` can namespace this numbering: each named scope restarts its own
+placeholder counter while still reusing the single loaded model. The ratings
+batch uses one scope per transcript, for example.
+
+Privacy and audit trail
+------------------------
+Only ``IdentifierMatch`` (and the ``Deidentifier`` mapping it lives in) holds
+raw PII, and both stay in this Python process. ``DeidentificationSummary``
+carries counts only and is safe to write to logs or disk.
+
+Lazy loading
+------------
 The optional ``opf`` dependency is imported only when a ``Deidentifier`` first
 runs. Importing ``lab_llm`` therefore does not download a model or require the
 privacy extra.
@@ -177,7 +203,10 @@ class Deidentifier:
             else None
         )
         self._engine = engine
+        # Maps a normalized (scope, label, text) triple to its placeholder, so a
+        # repeated identifier always reuses the same placeholder string.
         self._replacements: dict[tuple[str | None, str, str], str] = {}
+        # Per (scope, label) running counter that numbers placeholders 1, 2, ...
         self._label_counts: Counter[tuple[str | None, str]] = Counter()
 
     def deidentify(
@@ -206,19 +235,24 @@ class Deidentifier:
             )
 
         result = self._get_engine().redact(text)
+        # The typed engine returns an object with detected spans. A bare string
+        # means it fell back to text-only mode, which we cannot audit safely.
         if isinstance(result, str) or not hasattr(result, "detected_spans"):
             raise RuntimeError(
                 "Privacy Filter must return structured detected spans"
             )
 
         source = getattr(result, "text", text)
+        # Keep only spans whose label is enabled for this Deidentifier.
         spans = [
             span
             for span in result.detected_spans
             if str(span.label) in self.labels
         ]
+        # Process spans left to right so the running cursor never moves backward.
         spans.sort(key=lambda span: (int(span.start), int(span.end)))
 
+        # Rebuild the text: copy the gap before each span, then its placeholder.
         pieces: list[str] = []
         matches: list[IdentifierMatch] = []
         cursor = 0
@@ -226,6 +260,8 @@ class Deidentifier:
             label = str(span.label)
             start = int(span.start)
             end = int(span.end)
+            # Reject overlapping or out-of-bounds spans rather than risk emitting
+            # a partial identifier; nothing has been sent to any API yet.
             if start < cursor or start < 0 or end <= start or end > len(source):
                 raise RuntimeError(
                     "Privacy Filter returned invalid or overlapping spans; "
@@ -244,7 +280,7 @@ class Deidentifier:
                 )
             )
             cursor = end
-        pieces.append(source[cursor:])
+        pieces.append(source[cursor:])  # trailing text after the last span
 
         return DeidentificationResult(
             text="".join(pieces),
@@ -259,9 +295,17 @@ class Deidentifier:
         original: str,
         scope: str | None,
     ) -> str:
+        """Return a stable placeholder for ``original`` within ``scope``.
+
+        Casing and runs of whitespace are normalized so that variants like
+        ``"Maya Chen"`` and ``"maya  chen"`` share one placeholder. The first
+        distinct value for a (scope, label) pair gets number 1, the next 2, etc.
+        """
         normalized = " ".join(original.casefold().split())
         key = (scope, label, normalized)
         if key not in self._replacements:
+            # First time we've seen this value: assign the next number for its
+            # (scope, label) and remember the mapping for future occurrences.
             counter_key = (scope, label)
             self._label_counts[counter_key] += 1
             self._replacements[key] = (
