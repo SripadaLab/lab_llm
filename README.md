@@ -39,11 +39,11 @@ examples/                runnable examples from the workshop
   13_tool_calling/       raw Responses API function-tool loop
   14_research_agent/     multi-turn study investigator + hosted Python
   15_local_deidentification/ preview and locally filter research text
-data/                   shared sample transcripts, item banks, and instructions
+data/                    shared sample transcripts, item banks, and instructions
   mood_diaries/          eight synthetic, dated diary entries
   model_pricing.csv      saved OpenAI token-price snapshot for long runs
   synthetic_rating_results.jsonl  five example rating outcomes
-scripts/                setup / run / uninstall (macOS + Windows)
+scripts/                 setup / run / uninstall (macOS + Windows)
 ```
 
 Each module contains runnable examples. Files with `nicer_example` in the name
