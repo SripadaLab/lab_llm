@@ -121,6 +121,12 @@ Use them to run another study without editing the example.
 - `results.csv`: every rating and failure in one analysis-ready table.
 - `summary.json`: job counts, parse rate, tokens, cost, runtime, and models.
 
+`results.csv` keeps each item's response definition beside its result. Its
+`response_mode`, `scoring_values`, and JSON-encoded `allowed_values` columns
+make numeric ranges and discrete scales interpretable without joining the item
+bank. `rating_numeric` and `rating_text` provide type-stable analysis columns;
+`rating_label` contains the declared label for a numeric Likert value.
+
 `--workers` defaults to `1`: sequential and easiest to inspect. A larger value
 uses that many worker processes. Start small. More workers can hit provider
 rate limits sooner. Only the parent process writes the run files.

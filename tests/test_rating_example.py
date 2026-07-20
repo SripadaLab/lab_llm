@@ -43,6 +43,8 @@ def completed_record(value=42):
             "item_id": "I1",
             "min_value": 0,
             "max_value": 100,
+            "scoring_values": "",
+            "allowed_values": [],
         },
         "model": "test-model",
         "parsed_output": {"rating": value},
@@ -52,6 +54,7 @@ def completed_record(value=42):
             "input_tokens": 10,
             "cached_input_tokens": 2,
             "output_tokens": 1,
+            "reasoning_tokens": 3,
             "total_tokens": 11,
         },
         "duration_seconds": 1.25,
@@ -363,17 +366,67 @@ class RatingBatchTests(TestCase):
         )
 
     def test_writes_analysis_ready_results(self):
+        numeric_enum = completed_record(2)
+        numeric_enum["metadata"].update({
+            "item_id": "I2",
+            "min_value": 0,
+            "max_value": 3,
+            "scoring_values": (
+                "0 = Not at all | 1 = Several days | "
+                "2 = More than half the days | 3 = Nearly every day"
+            ),
+            "allowed_values": [0, 1, 2, 3],
+        })
+        text_enum = completed_record("Very positive")
+        text_enum["metadata"].update({
+            "item_id": "I3",
+            "min_value": None,
+            "max_value": None,
+            "scoring_values": (
+                "Very negative | Negative | Neutral | Positive | Very positive"
+            ),
+            "allowed_values": [
+                "Very negative", "Negative", "Neutral", "Positive",
+                "Very positive",
+            ],
+        })
+
         with TemporaryDirectory() as directory:
             path = Path(directory) / "results.csv"
-            rows = ratings._write_results([completed_record()], path)
+            rows = ratings._write_results(
+                [completed_record(), numeric_enum, text_enum],
+                path,
+            )
             with path.open(newline="", encoding="utf-8") as file:
-                saved = next(csv.DictReader(file))
+                saved = list(csv.DictReader(file))
 
         self.assertEqual(rows[0]["rating"], "42")
-        self.assertEqual(saved["transcript_id"], "T1")
-        self.assertEqual(saved["rating"], "42")
-        self.assertEqual(saved["raw_text"], '{"rating": 42}')
-        self.assertEqual(saved["total_tokens"], "11")
+        self.assertEqual(rows[0]["rating_numeric"], 42)
+        self.assertIsNone(rows[0]["rating_text"])
+        self.assertEqual(saved[0]["transcript_id"], "T1")
+        self.assertEqual(saved[0]["response_mode"], "numeric_range")
+        self.assertEqual(saved[0]["allowed_values"], "[]")
+        self.assertEqual(saved[0]["rating"], "42")
+        self.assertEqual(saved[0]["rating_numeric"], "42")
+        self.assertEqual(saved[0]["rating_text"], "")
+        self.assertEqual(saved[0]["raw_text"], '{"rating": 42}')
+        self.assertEqual(saved[0]["reasoning_tokens"], "3")
+        self.assertEqual(saved[0]["total_tokens"], "11")
+
+        self.assertEqual(saved[1]["response_mode"], "numeric_enum")
+        self.assertEqual(saved[1]["allowed_values"], "[0,1,2,3]")
+        self.assertEqual(saved[1]["rating_numeric"], "2")
+        self.assertEqual(saved[1]["rating_text"], "")
+        self.assertEqual(saved[1]["rating_label"], "More than half the days")
+
+        self.assertEqual(saved[2]["response_mode"], "text_enum")
+        self.assertEqual(
+            json.loads(saved[2]["allowed_values"]),
+            ["Very negative", "Negative", "Neutral", "Positive", "Very positive"],
+        )
+        self.assertEqual(saved[2]["rating_numeric"], "")
+        self.assertEqual(saved[2]["rating_text"], "Very positive")
+        self.assertEqual(saved[2]["rating_label"], "")
 
     def test_writes_failed_jobs_without_parsing(self):
         record = completed_record()

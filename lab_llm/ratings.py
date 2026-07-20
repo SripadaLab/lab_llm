@@ -8,7 +8,7 @@ import time
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Sequence
 
@@ -303,15 +303,57 @@ def _rating_value(record):
     return f"{value:g}", "parsed", ""
 
 
+def _response_mode(metadata):
+    """Describe the machine-level response shape saved for analysis."""
+    allowed = metadata.get("allowed_values") or []
+    if allowed and all(isinstance(value, str) for value in allowed):
+        return "text_enum"
+    if allowed and all(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        for value in allowed
+    ):
+        return "numeric_enum"
+    if (
+        metadata.get("min_value") is not None
+        and metadata.get("max_value") is not None
+    ):
+        return "numeric_range"
+    return "unknown"
+
+
+def _numeric_rating_label(metadata, rating):
+    """Look up the declared label for one valid numeric enum value."""
+    if isinstance(rating, bool) or not isinstance(rating, (int, float)):
+        return None
+    scoring_values = metadata.get("scoring_values") or ""
+    if not isinstance(scoring_values, str) or "=" not in scoring_values:
+        return None
+
+    rating_value = Decimal(str(rating))
+    for entry in scoring_values.split("|"):
+        number, separator, label = entry.partition("=")
+        if not separator or not number.strip() or not label.strip():
+            return None
+        try:
+            scoring_value = Decimal(number.strip())
+        except InvalidOperation:
+            return None
+        if rating_value == scoring_value:
+            return label.strip()
+    return None
+
+
 def _write_results(records, path: Path):
     """Write an analysis-ready CSV without discarding raw output."""
     columns = [
         "job_id", "transcript_id", "transcript_file", "item_id",
-        "min_value", "max_value", "model", "status", "rating",
-        "parse_status", "parse_error", "raw_text", "response_id",
-        "input_tokens", "output_tokens", "total_tokens",
-        "cached_input_tokens", "duration_seconds", "estimated_cost_usd",
-        "error_type", "error_message",
+        "response_mode", "min_value", "max_value", "scoring_values",
+        "allowed_values", "model", "status", "rating", "rating_numeric",
+        "rating_text", "rating_label", "parse_status", "parse_error",
+        "raw_text", "response_id", "input_tokens", "output_tokens",
+        "reasoning_tokens", "total_tokens", "cached_input_tokens",
+        "duration_seconds", "estimated_cost_usd", "error_type",
+        "error_message",
     ]
     rows = []
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -320,25 +362,52 @@ def _write_results(records, path: Path):
         writer.writeheader()
         for record in records:
             rating, parse_status, parse_error = _rating_value(record)
+            parsed_rating = (record.get("parsed_output") or {}).get("rating")
             usage = record.get("usage") or {}
             error = record.get("error") or {}
             metadata = record["metadata"]
+            rating_numeric = None
+            rating_text = None
+            rating_label = None
+            if parse_status == "parsed":
+                if isinstance(parsed_rating, str):
+                    rating_text = parsed_rating
+                elif (
+                    isinstance(parsed_rating, (int, float))
+                    and not isinstance(parsed_rating, bool)
+                ):
+                    rating_numeric = parsed_rating
+                    rating_label = _numeric_rating_label(
+                        metadata,
+                        parsed_rating,
+                    )
             row = {
                 "job_id": record["job_id"],
                 "transcript_id": metadata["transcript_id"],
                 "transcript_file": metadata.get("transcript_file"),
                 "item_id": metadata["item_id"],
-                "min_value": metadata["min_value"],
-                "max_value": metadata["max_value"],
+                "response_mode": _response_mode(metadata),
+                "min_value": metadata.get("min_value"),
+                "max_value": metadata.get("max_value"),
+                "scoring_values": metadata.get("scoring_values", ""),
+                "allowed_values": json.dumps(
+                    metadata.get("allowed_values") or [],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ),
                 "model": record["model"],
                 "status": record["status"],
                 "rating": rating,
+                "rating_numeric": rating_numeric,
+                "rating_text": rating_text,
+                "rating_label": rating_label,
                 "parse_status": parse_status,
                 "parse_error": parse_error,
                 "raw_text": record.get("output_text"),
                 "response_id": record.get("response_id"),
                 "input_tokens": usage.get("input_tokens"),
                 "output_tokens": usage.get("output_tokens"),
+                "reasoning_tokens": usage.get("reasoning_tokens"),
                 "total_tokens": usage.get("total_tokens"),
                 "cached_input_tokens": usage.get("cached_input_tokens"),
                 "duration_seconds": record.get("duration_seconds"),
